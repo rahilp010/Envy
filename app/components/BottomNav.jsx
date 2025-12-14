@@ -18,12 +18,36 @@ const BottomNav = ({ navigation, active }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={active === 'product' ? styles.active : styles.item}
+          style={
+            active === 'product' ||
+            active === 'client' ||
+            active === 'purchase' ||
+            active === 'sales'
+              ? styles.active
+              : styles.item
+          }
         >
           <Icon
-            name="cube-outline"
+            name={
+              active === 'product'
+                ? 'cube-outline'
+                : active === 'client'
+                ? 'people-outline'
+                : active === 'purchase'
+                ? 'cart-outline'
+                : active === 'sales'
+                ? 'cash-outline'
+                : 'cash-outline'
+            }
             size={22}
-            color={active === 'product' ? '#000' : '#fff'}
+            color={
+              active === 'product' ||
+              active === 'client' ||
+              active === 'purchase' ||
+              active === 'sales'
+                ? '#000'
+                : '#fff'
+            }
           />
         </TouchableOpacity>
       </View>

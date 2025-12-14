@@ -9,7 +9,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const Navbar = ({ title = 'Title', onSearch, onNotify, onMenu }) => {
+const Navbar = ({ title = 'Title', onSearch, onFilter }) => {
   const insets = useSafeAreaInsets();
 
   return (
@@ -25,6 +25,10 @@ const Navbar = ({ title = 'Title', onSearch, onNotify, onMenu }) => {
           <TouchableOpacity style={styles.iconBtn} onPress={onSearch}>
             <Icon name="search-outline" size={20} color="#111" />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={onFilter}>
+            <Icon name="filter-outline" size={20} color="#111" />
+          </TouchableOpacity>
+
           {/* 
           <TouchableOpacity style={styles.iconBtn} onPress={onNotify}>
             <Icon name="notifications-outline" size={20} color="#111" />

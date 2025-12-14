@@ -136,6 +136,208 @@ const api = {
             throw new Error('Network error: ' + error.message);
         }
     },
+
+
+    //Clients
+
+    createClient: async (clientData) => {
+        try {
+            const res = await fetch(`${API_URL}/clients`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(clientData),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    updateClient: async (id, clientData) => {
+        try {
+            const res = await fetch(`${API_URL}/clients/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(clientData),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    deleteClient: async (id) => {
+        try {
+            const res = await fetch(`${API_URL}/clients/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    getAllClients: async () => {
+        try {
+            const response = await fetch(`${API_URL}/clients`);
+            return await response.json();
+        } catch (error) {
+            throw new Error('Network error: ' + error.message);
+        }
+    },
+
+
+    //Purchase
+
+    createPurchase: async (purchaseData) => {
+        try {
+            const res = await fetch(`${API_URL}/purchase`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(purchaseData),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    updatePurchase: async (id, purchaseData) => {
+        try {
+            const res = await fetch(`${API_URL}/purchase/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(purchaseData),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    deletePurchase: async (id) => {
+        try {
+            const res = await fetch(`${API_URL}/purchase/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    getAllPurchases: async () => {
+        try {
+            const response = await fetch(`${API_URL}/purchase`);
+            return await response.json();
+        } catch (error) {
+            throw new Error('Network error: ' + error.message);
+        }
+    },
+
+
+    //Sales
+
+    createSales: async (saleData) => {
+        try {
+            const res = await fetch(`${API_URL}/sales`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(saleData),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    updateSales: async (id, saleData) => {
+        try {
+            const res = await fetch(`${API_URL}/sales/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(saleData),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    deleteSales: async (id) => {
+        try {
+            const res = await fetch(`${API_URL}/sales/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    getAllSales: async () => {
+        try {
+            const response = await fetch(`${API_URL}/sales`);
+            return await response.json();
+        } catch (error) {
+            throw new Error('Network error: ' + error.message);
+        }
+    },
+
 };
 
 export default api;

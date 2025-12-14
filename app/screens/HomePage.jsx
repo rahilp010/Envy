@@ -89,9 +89,24 @@ function HomeScreenContent({ navigation }) {
             color="#DFF4FB"
             onPress={() => navigation.navigate('Product')}
           />
-          <Card icon="people-outline" label="Clients" color="#FCE8E6" />
-          <Card icon="cart-outline" label="Purchase" color="#E6F7E9" />
-          <Card icon="cash-outline" label="Sales" color="#FFF2C6" />
+          <Card
+            icon="people-outline"
+            label="Clients"
+            color="#FCE8E6"
+            onPress={() => navigation.navigate('Client')}
+          />
+          <Card
+            icon="cart-outline"
+            label="Purchase"
+            color="#E6F7E9"
+            onPress={() => navigation.navigate('Purchase')}
+          />
+          <Card
+            icon="cash-outline"
+            label="Sales"
+            color="#FFF2C6"
+            onPress={() => navigation.navigate('Sales')}
+          />
 
           {/* ✅ FULL WIDTH BANKING CARD */}
           <FullWidthCard
@@ -154,7 +169,7 @@ function HomeScreenContent({ navigation }) {
                 }}
               >
                 <Icon
-                  name="person-outline"
+                  name="settings-outline"
                   size={24}
                   color={activeTab === 'profile' ? '#000' : '#fff'}
                 />
