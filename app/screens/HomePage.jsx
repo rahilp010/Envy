@@ -113,6 +113,7 @@ function HomeScreenContent({ navigation }) {
             icon="business-outline"
             label="Digital Banking Platform"
             color="#E8EAFE"
+            onPress={() => navigation.navigate('BankSystem')}
           />
         </View>
 
@@ -166,6 +167,7 @@ function HomeScreenContent({ navigation }) {
                 onPress={() => {
                   setActiveTab('profile');
                   animateTab(scaleProfile);
+                  navigation.navigate('NotFound');
                 }}
               >
                 <Icon
@@ -207,8 +209,12 @@ const Card = ({ icon, label, color, onPress }) => (
   </TouchableOpacity>
 );
 
-const FullWidthCard = ({ icon, label, color }) => (
-  <TouchableOpacity style={[styles.fullWidthCard, { backgroundColor: color }]}>
+const FullWidthCard = ({ icon, label, color, onPress }) => (
+  <TouchableOpacity
+    style={[styles.fullWidthCard, { backgroundColor: color }]}
+    onPress={onPress}
+    activeOpacity={0.8}
+  >
     <View style={styles.fullIconWrapper}>
       <Icon name={icon} size={25} color="#000" />
     </View>

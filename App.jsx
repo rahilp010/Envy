@@ -6,14 +6,23 @@ import Client from './app/screens/Client';
 import Product from './app/screens/Product';
 import Purchase from './app/screens/Purchase';
 import Sales from './app/screens/Sales';
+import NotFoundScreen from './app/utility/NotFoundScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import BootSplash from 'react-native-bootsplash';
+import BankSystem from './app/screens/BankSystem';
+import Account from './app/components/Bank/Account';
+import Transfer from './app/components/Bank/Transfer';
 
 // const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function App() {
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      onReady={async () => {
+        await BootSplash.hide({ fade: true });
+      }}
+    >
       <StatusBar barStyle="light-content" />
       <Stack.Navigator initialRouteName="Dashboard">
         <Stack.Screen
@@ -69,6 +78,20 @@ function App() {
           }}
           name="Sales"
           component={Sales}
+        />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            tabBarVisible: false,
+            tabBarStyle: { display: 'none' },
+          }}
+          name="BankSystem"
+          component={BankSystem}
+        />
+        <Stack.Screen
+          name="NotFound"
+          component={NotFoundScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -22,7 +22,8 @@ const BottomNav = ({ navigation, active }) => {
             active === 'product' ||
             active === 'client' ||
             active === 'purchase' ||
-            active === 'sales'
+            active === 'sales' ||
+            active === 'bank'
               ? styles.active
               : styles.item
           }
@@ -37,6 +38,8 @@ const BottomNav = ({ navigation, active }) => {
                 ? 'cart-outline'
                 : active === 'sales'
                 ? 'cash-outline'
+                : active === 'bank'
+                ? 'business-outline'
                 : 'cash-outline'
             }
             size={22}
@@ -44,7 +47,8 @@ const BottomNav = ({ navigation, active }) => {
               active === 'product' ||
               active === 'client' ||
               active === 'purchase' ||
-              active === 'sales'
+              active === 'sales' ||
+              active === 'bank'
                 ? '#000'
                 : '#fff'
             }

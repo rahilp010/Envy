@@ -17,7 +17,6 @@ import {
   RefreshControl,
   LayoutAnimation,
   Switch,
-  Alert,
 } from 'react-native';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
