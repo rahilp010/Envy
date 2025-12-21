@@ -21,6 +21,7 @@ import {
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
 import Icon from 'react-native-vector-icons/Ionicons';
+import Loading from '../animation/Loading';
 import api from '../services/api';
 
 const SkeletonCard = () => {
@@ -90,6 +91,7 @@ const Client = ({ navigation }) => {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [pendingResetFunc, setPendingResetFunc] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState('');
@@ -231,7 +233,7 @@ const Client = ({ navigation }) => {
     if (Object.keys(newErrors).length > 0) return;
 
     const clientData = {
-      clientName: clientName.trim(),
+      clientName: clientName.trim().toUpperCase(),
       phoneNo: Number(phoneNo),
       gstNo: gstNo,
       address: address.trim(),
@@ -245,6 +247,7 @@ const Client = ({ navigation }) => {
 
     if (editingClient) {
       try {
+        setLoading(true);
         const res = await api.updateClient(editingClient._id, clientData);
 
         const updated = res.client;
@@ -256,9 +259,12 @@ const Client = ({ navigation }) => {
         handleReset();
       } catch (err) {
         console.log('Update error:', err.message);
+      } finally {
+        setLoading(false);
       }
     } else {
       try {
+        setLoading(true);
         const res = await api.createClient(clientData);
 
         const updated = res.client;
@@ -268,6 +274,8 @@ const Client = ({ navigation }) => {
         handleReset();
       } catch (err) {
         console.log('Update error:', err.message);
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -276,11 +284,14 @@ const Client = ({ navigation }) => {
 
   const handleDelete = async id => {
     try {
+      setLoading(true);
       await api.deleteClient(id);
 
       setClients(prev => prev.filter(item => item._id !== id));
     } catch (err) {
       console.log('Delete error:', err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -371,6 +382,16 @@ const Client = ({ navigation }) => {
         </Animated.View>
       )}
 
+      {loading && (
+        <Modal transparent animationType="fade" visible>
+          <View style={styles.overlay}>
+            <View style={styles.loaderBox}>
+              <Loading />
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* ✅ PRODUCT LIST */}
       {refreshing && clients.length === 0 ? (
         <View style={{ padding: 16 }}>
@@ -392,6 +413,7 @@ const Client = ({ navigation }) => {
               onDelete={handleDelete}
               onEdit={handleEdit}
               openConfirm={openConfirm}
+              navigation={navigation}
             />
           )}
           ListEmptyComponent={
@@ -655,7 +677,7 @@ export default Client;
 /* ===================== SWIPE CARD ======================== */
 /* ========================================================= */
 
-const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
+const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const expandAnim = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
@@ -822,6 +844,17 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
               >
                 <Icon name="create-outline" size={18} />
                 <Text style={styles.editText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.editBtnExpanded}
+                onPress={() =>
+                  navigation.navigate('Ledger', {
+                    client: item,
+                  })
+                }
+              >
+                <Icon name="create-outline" size={18} />
+                <Text style={styles.editText}>Ledger</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1545,5 +1578,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)', // 🔥 dim background
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loaderBox: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 26,
+    paddingVertical: 18,
+    borderRadius: 18,
   },
 });

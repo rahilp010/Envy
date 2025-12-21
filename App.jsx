@@ -11,6 +11,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BootSplash from 'react-native-bootsplash';
 import BankSystem from './app/screens/BankSystem';
 import Account from './app/components/Bank/Account';
+import Ledger from './app/components/Bank/Ledger';
 import Transfer from './app/components/Bank/Transfer';
 
 // const Tab = createBottomTabNavigator();
@@ -87,6 +88,24 @@ function App() {
           }}
           name="BankSystem"
           component={BankSystem}
+        />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            tabBarVisible: false,
+            tabBarStyle: { display: 'none' },
+          }}
+          name="Account"
+          component={Account}
+        />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            tabBarVisible: false,
+            tabBarStyle: { display: 'none' },
+          }}
+          name="Ledger"
+          component={Ledger}
         />
         <Stack.Screen
           name="NotFound"

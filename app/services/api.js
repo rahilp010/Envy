@@ -338,6 +338,60 @@ const api = {
         }
     },
 
+    getAllAccounts: async () => {
+        try {
+            const response = await fetch(`${API_URL}/account`);
+            return await response.json();
+        } catch (error) {
+            throw new Error('Network error: ' + error.message);
+        }
+    },
+
+    updateAccount: async (id, accountData) => {
+        try {
+            const res = await fetch(`${API_URL}/account/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(accountData),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    deleteAccount: async (id) => {
+        try {
+            const res = await fetch(`${API_URL}/account/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    getClientLedger: async (id) => {
+        try {
+            const response = await fetch(`${API_URL}/ledger/client/${id}`);
+            return await response.json();
+        } catch (error) {
+            throw new Error('Network error: ' + error.message);
+        }
+    },
+
 };
 
 export default api;

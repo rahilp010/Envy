@@ -30,7 +30,7 @@ export default function BankSystem({ navigation }) {
             label="Transfer"
             color="#DFF4FB"
           />
-          <Action icon="journal-outline" label="Ladger" color="#E6F7E9" />
+          <Action icon="journal-outline" label="Ledger" color="#E6F7E9" />
           <Action icon="analytics-outline" label="Analytics" color="#FFF2C6" />
         </View>
 
@@ -39,6 +39,7 @@ export default function BankSystem({ navigation }) {
             icon="person-outline"
             label="Account"
             color="#FCE8E6"
+            onPress={() => navigation.navigate('Account')}
           />
           <ActionFunction
             icon="swap-horizontal-outline"
@@ -47,8 +48,9 @@ export default function BankSystem({ navigation }) {
           />
           <ActionFunction
             icon="journal-outline"
-            label="Ladger"
+            label="Ledger"
             color="#E6F7E9"
+            onPress={() => navigation.navigate('Ledger', { client: item })}
           />
           <ActionFunction
             icon="analytics-outline"
@@ -82,7 +84,7 @@ export default function BankSystem({ navigation }) {
 }
 
 /* ACTION BUTTON */
-const Action = ({ icon, label, color }) => (
+const Action = ({ icon, label, color, onPress }) => (
   <View style={styles.actionItem}>
     <TouchableOpacity style={[styles.actionIcon, { backgroundColor: color }]}>
       <Ionicons name={icon} size={20} color="#111827" />
@@ -91,10 +93,11 @@ const Action = ({ icon, label, color }) => (
   </View>
 );
 
-const ActionFunction = ({ icon, label, color }) => (
+const ActionFunction = ({ icon, label, color, onPress }) => (
   <View style={styles.actionItemFun}>
     <TouchableOpacity
       style={[styles.actionIconFun, { backgroundColor: color }]}
+      onPress={onPress}
     >
       <Ionicons name={icon} size={25} color="#111827" />
     </TouchableOpacity>
