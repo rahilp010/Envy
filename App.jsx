@@ -13,6 +13,7 @@ import BankSystem from './app/screens/BankSystem';
 import Account from './app/components/Bank/Account';
 import Ledger from './app/components/Bank/Ledger';
 import Transfer from './app/components/Bank/Transfer';
+import LedgerClientList from './app/components/Bank/LedgerClientList';
 
 // const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -106,6 +107,24 @@ function App() {
           }}
           name="Ledger"
           component={Ledger}
+        />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            tabBarVisible: false,
+            tabBarStyle: { display: 'none' },
+          }}
+          name="Transfer"
+          component={Transfer}
+        />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            tabBarVisible: false,
+            tabBarStyle: { display: 'none' },
+          }}
+          name="LedgerClientList"
+          component={LedgerClientList}
         />
         <Stack.Screen
           name="NotFound"

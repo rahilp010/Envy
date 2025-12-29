@@ -62,6 +62,22 @@ const api = {
         }
     },
 
+    transferAmountHistory: async () => {
+        try {
+            const response = await fetch(`${API_URL}/ledger/history`);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch transfer history');
+            }
+
+            return await response.json();
+        } catch (error) {
+            throw new Error('Network error: ' + error.message);
+        }
+    },
+
+
+
     // Get transaction history
     getTransactions: async (accountNumber) => {
         try {
@@ -391,6 +407,7 @@ const api = {
             throw new Error('Network error: ' + error.message);
         }
     },
+
 
 };
 

@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#ffee00ff', // black
+    backgroundColor: '#ff0000ff', // black
     marginHorizontal: 4,
   },
 });

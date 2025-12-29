@@ -31,6 +31,7 @@ import BottomNav from '../components/BottomNav';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import Loading from '../animation/Loading';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -108,6 +109,7 @@ const Purchase = ({ navigation }) => {
   const [paidAmount, setPaidAmount] = useState('');
   const [pendingAmount, setPendingAmount] = useState('');
   const [pendingFromOurs, setPendingFromOurs] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
@@ -346,6 +348,7 @@ const Purchase = ({ navigation }) => {
 
     if (editingPurchase) {
       try {
+        setLoading(true);
         const res = await api.updatePurchase(editingPurchase._id, purchaseData);
         const updated = res.purchase || res;
         if (!updated || !updated._id) {
@@ -359,9 +362,12 @@ const Purchase = ({ navigation }) => {
       } catch (err) {
         console.log('Update error:', err.message);
         Alert.alert('Error', 'Failed to update purchase');
+      } finally {
+        setLoading(false);
       }
     } else {
       try {
+        setLoading(true);
         const res = await api.createPurchase(purchaseData);
         const updated = res.purchase || res;
         if (!updated || !updated._id) {
@@ -373,17 +379,22 @@ const Purchase = ({ navigation }) => {
       } catch (err) {
         console.log('Create error:', err.message);
         Alert.alert('Error', 'Failed to create purchase');
+      } finally {
+        setLoading(false);
       }
     }
   };
 
   const handleDelete = async id => {
     try {
+      setLoading(true);
       await api.deletePurchase(id);
       setPurchases(prev => prev.filter(item => item._id !== id));
     } catch (err) {
       console.log('Delete error:', err.message);
       Alert.alert('Error', 'Failed to delete purchase');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -438,9 +449,7 @@ const Purchase = ({ navigation }) => {
     }).start();
   };
 
-  const loadPurchases = useCallback(async () => {
-    if (refreshing) return;
-
+  const loadPurchases = async () => {
     try {
       setRefreshing(true);
       const res = await api.getAllPurchases();
@@ -450,38 +459,62 @@ const Purchase = ({ navigation }) => {
     } finally {
       setRefreshing(false);
     }
-  }, [refreshing]);
+  };
 
-  const fetchClients = useCallback(async () => {
-    if (refreshing) return;
+  // const fetchClients = useCallback(async () => {
+  //   if (refreshing) return;
 
-    try {
-      setRefreshing(true);
-      const res = await api.getAllClients();
-      setClients(res.clients || res);
-    } catch (err) {
-      console.log('Client fetch error:', err.message);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing]);
+  //   try {
+  //     setRefreshing(true);
+  //     const res = await api.getAllClients();
+  //     setClients(res.clients || res);
+  //   } catch (err) {
+  //     console.log('Client fetch error:', err.message);
+  //   } finally {
+  //     setRefreshing(false);
+  //   }
+  // }, [refreshing]);
 
-  const fetchProducts = useCallback(async () => {
-    if (refreshing) return;
+  // const fetchProducts = useCallback(async () => {
+  //   if (refreshing) return;
 
-    try {
-      setRefreshing(true);
-      const res = await api.getAllProducts();
-      setProducts(res.products || res);
-    } catch (err) {
-      console.log('Product fetch error:', err.message);
-    }
-  }, [refreshing]);
+  //   try {
+  //     setRefreshing(true);
+  //     const res = await api.getAllProducts();
+  //     setProducts(res.products || res);
+  //   } catch (err) {
+  //     console.log('Product fetch error:', err.message);
+  //   }
+  // }, [refreshing]);
+
+  // useEffect(() => {
+  //   loadPurchases();
+  //   fetchClients();
+  //   fetchProducts();
+  // }, []);
 
   useEffect(() => {
-    loadPurchases();
-    fetchClients();
-    fetchProducts();
+    const init = async () => {
+      try {
+        setLoading(true);
+
+        await Promise.all([
+          api.getAllPurchases(),
+          api.getAllClients(),
+          api.getAllProducts(),
+        ]).then(([purchaseRes, clientRes, productRes]) => {
+          setPurchases(purchaseRes.purchases || purchaseRes);
+          setClients(clientRes.clients || clientRes);
+          setProducts(productRes.products || productRes);
+        });
+      } catch (err) {
+        console.log('Init load error:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
   }, []);
 
   const openConfirm = useCallback((id, resetFunc) => {
@@ -645,8 +678,18 @@ const Purchase = ({ navigation }) => {
         </View>
       </View>
 
+      {loading && (
+        <Modal transparent animationType="fade" visible>
+          <View style={styles.overlay}>
+            <View style={styles.loaderBox}>
+              <Loading />
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* ✅ PURCHASE LIST */}
-      {refreshing && purchases.length === 0 ? (
+      {loading ? (
         <View style={{ padding: 16 }}>
           {[1, 2, 3, 4, 5].map(i => (
             <SkeletonCard key={i} />
@@ -1092,57 +1135,85 @@ const Purchase = ({ navigation }) => {
       {/* ✅ PICKER MODAL */}
       <Modal visible={pickerVisible} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setPickerVisible(false)}>
-          <View style={styles.pickerOverlay}>
-            <View style={styles.pickerBox}>
-              {(pickerType === 'client'
-                ? clients
-                : pickerType === 'filterClient'
-                ? clients
-                : pickerType === 'product'
-                ? products
-                : ['5', '12', '18', '28']
-              ).map(item => (
-                <TouchableOpacity
-                  key={item._id || item}
-                  style={styles.pickerItem}
-                  onPress={() => {
-                    if (pickerType === 'client') {
-                      console.log(item);
+          <View style={styles.centerOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.centerModal}>
+                <Text style={styles.pickerTitle}>
+                  Select{' '}
+                  {String(pickerType).charAt(0).toUpperCase() +
+                    String(pickerType).slice(1)}
+                </Text>
+                <FlatList
+                  data={
+                    pickerType === 'client' || pickerType === 'filterClient'
+                      ? clients
+                      : pickerType === 'product'
+                      ? products
+                      : ['5', '12', '18', '28']
+                  }
+                  keyExtractor={(item, index) => item._id || index.toString()}
+                  showsVerticalScrollIndicator={false}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyText}>No data available</Text>
+                  }
+                  renderItem={({ item }) => {
+                    const label =
+                      item.clientName || item.productName || `${item}%`;
 
-                      setClientName(item.clientName);
-                      setClientId(item._id);
-                    }
-                    if (pickerType === 'filterClient') {
-                      setFilterClientName(item.clientName);
-                      setFilterClientId(item._id);
-                    }
-                    if (pickerType === 'product') {
-                      setProductName(item.productName);
-                      setProductId(item._id);
-                      setProductPrice(item.purchaseAmount || '');
-                      // TODO: Set stock from item.isStock
-                      setSelectedProductStock(item.isStock || 0);
-                    }
-                    if (pickerType === 'tax') setTaxRate(item);
+                    const isSelected =
+                      (pickerType === 'client' && item._id === clientId) ||
+                      (pickerType === 'filterClient' &&
+                        item._id === filterClientId) ||
+                      (pickerType === 'product' && item._id === productId) ||
+                      (pickerType === 'tax' && item === taxRate);
 
-                    setPickerVisible(false);
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.optionRow,
+                          isSelected && styles.optionActive,
+                        ]}
+                        onPress={() => {
+                          if (pickerType === 'client') {
+                            setClientName(item.clientName);
+                            setClientId(item._id);
+                          }
+
+                          if (pickerType === 'filterClient') {
+                            setFilterClientName(item.clientName);
+                            setFilterClientId(item._id);
+                          }
+
+                          if (pickerType === 'product') {
+                            setProductName(item.productName);
+                            setProductId(item._id);
+                            setProductPrice(item.purchaseAmount || '');
+                            setSelectedProductStock(item.isStock || 0);
+                          }
+
+                          if (pickerType === 'tax') setTaxRate(item);
+
+                          setPickerVisible(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.optionText,
+                            isSelected && styles.optionTextActive,
+                          ]}
+                        >
+                          {label}
+                        </Text>
+
+                        {isSelected && (
+                          <Icon name="checkmark" size={18} color="#111827" />
+                        )}
+                      </TouchableOpacity>
+                    );
                   }}
-                >
-                  <Text style={styles.pickerText}>
-                    {item.clientName || item.productName || `${item}%`}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              {pickerType === 'client' && clients.length < 0 && (
-                <Text style={styles.placeholder}>No clients loaded</Text>
-              )}
-              {pickerType === 'product' && products.length < 0 && (
-                <Text style={styles.placeholder}>No products loaded</Text>
-              )}
-              {pickerType === 'filterClient' && clients.length < 0 && (
-                <Text style={styles.placeholder}>No clients loaded</Text>
-              )}
-            </View>
+                />
+              </View>
+            </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -1456,6 +1527,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 12,
+    color: '#6B7280',
+  },
+
   deleteBg: {
     position: 'absolute',
     right: 0,
@@ -1489,12 +1566,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 200,
-  },
-
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 12,
-    color: '#6B7280',
   },
 
   productCard: {
@@ -1791,11 +1862,79 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  pickerOverlay: {
+  centerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  centerModal: {
+    width: '85%',
+    maxHeight: '65%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingVertical: 16,
+    elevation: 10,
+  },
+
+  // modalTitle: {
+  //   fontSize: 17,
+  //   fontWeight: '800',
+  //   color: '#111827',
+  //   textAlign: 'center',
+  //   marginBottom: 12,
+  // },
+
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+
+  pickerSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '65%',
+    paddingBottom: 10,
+  },
+
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    paddingHorizontal: 18,
+  },
+
+  pickerItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+
+  pickerItemActive: {
+    backgroundColor: '#F3F4F6',
+  },
+
+  pickerText: {
+    fontSize: 15,
+    color: '#111827',
+  },
+
+  pickerTextActive: {
+    fontWeight: '700',
   },
 
   pickerBox: {
@@ -1804,19 +1943,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 12,
     maxHeight: 300, // Prevent overflow
-  },
-
-  pickerItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-
-  pickerText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
   },
 
   modalScroll: {
@@ -2293,6 +2419,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5',
   },
 
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)', // 🔥 dim background
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loaderBox: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 26,
+    paddingVertical: 18,
+    borderRadius: 18,
+  },
+
   statBlue: {
     backgroundColor: '#EFF6FF',
   },
@@ -2366,5 +2506,26 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'capitalize',
+  },
+
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+
+  optionActive: {
+    backgroundColor: '#F3F4F6',
+  },
+
+  optionText: {
+    fontSize: 15,
+    color: '#111827',
+  },
+
+  optionTextActive: {
+    fontWeight: '700',
   },
 });

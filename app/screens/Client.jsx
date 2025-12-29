@@ -320,22 +320,22 @@ const Client = ({ navigation }) => {
   };
 
   const loadClients = useCallback(async () => {
-    if (refreshing) return;
-
     try {
       setRefreshing(true);
+      setLoading(true);
       const res = await api.getAllClients();
       setClients(res);
     } catch (err) {
       console.log('Fetch error:', err.message);
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   }, [refreshing]);
 
-  //   useEffect(() => {
-  //     loadProducts();
-  //   }, []);
+  useEffect(() => {
+    loadClients();
+  }, []);
 
   const openConfirm = useCallback((id, resetFunc) => {
     setPendingDeleteId(id);
@@ -393,7 +393,7 @@ const Client = ({ navigation }) => {
       )}
 
       {/* ✅ PRODUCT LIST */}
-      {refreshing && clients.length === 0 ? (
+      {loading ? (
         <View style={{ padding: 16 }}>
           {[1, 2, 3, 4, 5].map(i => (
             <SkeletonCard key={i} />
@@ -777,7 +777,7 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
             >
               <View style={styles.stockBadge}>
                 <Text style={styles.stockText}>
-                  Pending: {item.pendingAmount}
+                  Pending: {item.pendingAmount || 0}
                 </Text>
               </View>
 
@@ -790,7 +790,7 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
                   style={{
                     transform: [
                       {
-                        rotate: expanded ? '180deg' : '0deg', // ✅ rotate arrow
+                        rotate: expanded ? '180deg' : '0deg',
                       },
                     ],
                   }}
@@ -806,17 +806,21 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
             <View style={styles.expandedBox}>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Pending Amount</Text>
-                <Text style={styles.detailValue}>₹ {item.pendingAmount}</Text>
+                <Text style={styles.detailValue}>
+                  ₹ {item.pendingAmount || 0}
+                </Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Paid Amount</Text>
-                <Text style={styles.detailValue}>₹ {item.paidAmount}</Text>
+                <Text style={styles.detailValue}>₹ {item.paidAmount || 0}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Pending From Ours</Text>
-                <Text style={styles.detailValue}>₹ {item.pendingFromOurs}</Text>
+                <Text style={styles.detailValue}>
+                  ₹ {item.pendingFromOurs || 0}
+                </Text>
               </View>
 
               <View style={styles.detailRow}>
@@ -838,24 +842,26 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
 
               <View style={styles.totalDivider} />
 
-              <TouchableOpacity
-                style={styles.editBtnExpanded}
-                onPress={() => onEdit(item)}
-              >
-                <Icon name="create-outline" size={18} />
-                <Text style={styles.editText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.editBtnExpanded}
-                onPress={() =>
-                  navigation.navigate('Ledger', {
-                    client: item,
-                  })
-                }
-              >
-                <Icon name="create-outline" size={18} />
-                <Text style={styles.editText}>Ledger</Text>
-              </TouchableOpacity>
+              <View style={styles.editBtnContainer}>
+                <TouchableOpacity
+                  style={styles.editBtnExpanded}
+                  onPress={() => onEdit(item)}
+                >
+                  <Icon name="create-outline" size={18} color="#ffffffff" />
+                  <Text style={styles.editText}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.editBtnExpanded}
+                  onPress={() =>
+                    navigation.navigate('Ledger', {
+                      client: item,
+                    })
+                  }
+                >
+                  <Icon name="unlink-outline" size={18} color="#ffffffff" />
+                  <Text style={styles.editText}>Ledger</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </TouchableOpacity>
@@ -886,7 +892,6 @@ const styles = StyleSheet.create({
 
   swipeWrapper: {
     position: 'relative',
-    marginBottom: 14,
   },
 
   deleteBg: {
@@ -1493,19 +1498,24 @@ const styles = StyleSheet.create({
   },
 
   editBtnExpanded: {
-    marginTop: 14,
+    flex: 1, // 🔥 equal width
+    backgroundColor: '#111827',
+    paddingVertical: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#111827',
-    paddingVertical: 10,
-    borderRadius: 12,
-    gap: 6,
+    gap: 8,
   },
 
   editText: {
     color: '#fff',
     fontWeight: '700',
+    fontSize: 14,
+  },
+
+  editBtnSecondary: {
+    backgroundColor: '#1F2937', // slightly lighter black
   },
 
   toggleRow: {
@@ -1592,5 +1602,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 26,
     paddingVertical: 18,
     borderRadius: 18,
+  },
+
+  editBtnContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 14,
   },
 });

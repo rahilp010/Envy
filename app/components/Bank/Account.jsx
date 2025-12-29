@@ -108,6 +108,8 @@ const Account = ({ navigation }) => {
     }
   }, []);
 
+  console.log(accounts);
+
   useEffect(() => {
     loadAccounts();
   }, []);
@@ -570,7 +572,7 @@ const AccountCard = ({ item, onEdit, openConfirm }) => {
             <View>
               <Text style={styles.title}>{item.accountName}</Text>
               <Text style={styles.subTitle}>
-                {item.bankName || '—'} • {item.accountType}
+                {item.bankName || '—'} • {item?.clientId?.accountType}
               </Text>
             </View>
 

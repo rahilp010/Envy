@@ -21,6 +21,7 @@ import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
+import Loading from '../animation/Loading';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -76,8 +77,10 @@ const Product = ({ navigation }) => {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [pendingResetFunc, setPendingResetFunc] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const [client, setClient] = useState('');
+  const [clientId, setClientId] = useState(null);
   const [assetType, setAssetType] = useState('');
   const [saleHSN, setSaleHSN] = useState('');
   const [purchaseHSN, setPurchaseHSN] = useState('');
@@ -87,9 +90,10 @@ const Product = ({ navigation }) => {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerType, setPickerType] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [clients, setClients] = useState([]);
 
-  const clients = ['Client A', 'Client B', 'Client C'];
-  const assetTypes = ['Physical', 'Digital', 'Service'];
+  // const clients = ['Client A', 'Client B', 'Client C'];
+  const assetTypes = ['Raw Material', 'Finished Goods', 'Assets'];
   const parts = ['Main Part', 'Spare Part', 'Accessory'];
 
   useEffect(() => {
@@ -157,6 +161,20 @@ const Product = ({ navigation }) => {
     });
   };
 
+  const loadProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setRefreshing(true);
+      const res = await api.getAllProducts();
+      setProducts(res.products || res);
+    } catch (err) {
+      console.log('Product fetch error:', err.message);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  }, [refreshing]);
+
   const handleReset = () => {
     setEditingProduct(null);
     setName('');
@@ -207,6 +225,7 @@ const Product = ({ navigation }) => {
     };
 
     if (editingProduct) {
+      setLoading(true);
       try {
         const res = await api.updateProduct(editingProduct._id, productData);
 
@@ -219,8 +238,11 @@ const Product = ({ navigation }) => {
         handleReset();
       } catch (err) {
         console.log('Update error:', err.message);
+      } finally {
+        setLoading(false);
       }
     } else {
+      setLoading(true);
       try {
         const res = await api.createProduct(productData);
 
@@ -231,6 +253,8 @@ const Product = ({ navigation }) => {
         handleReset();
       } catch (err) {
         console.log('Update error:', err.message);
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -238,12 +262,15 @@ const Product = ({ navigation }) => {
   };
 
   const handleDelete = async id => {
+    setLoading(true);
     try {
       await api.deleteProduct(id);
 
       setProducts(prev => prev.filter(item => item._id !== id));
     } catch (err) {
       console.log('Delete error:', err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -270,23 +297,26 @@ const Product = ({ navigation }) => {
     }).start();
   };
 
-  const loadProducts = useCallback(async () => {
-    if (refreshing) return;
+  useEffect(() => {
+    const init = async () => {
+      try {
+        setLoading(true);
 
-    try {
-      setRefreshing(true);
-      const res = await api.getAllProducts();
-      setProducts(res);
-    } catch (err) {
-      console.log('Fetch error:', err.message);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing]);
+        await Promise.all([api.getAllClients(), api.getAllProducts()]).then(
+          ([clientRes, productRes]) => {
+            setClients(clientRes.clients || clientRes);
+            setProducts(productRes.products || productRes);
+          },
+        );
+      } catch (err) {
+        console.log('Init load error:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  //   useEffect(() => {
-  //     loadProducts();
-  //   }, []);
+    init();
+  }, []);
 
   const openConfirm = useCallback((id, resetFunc) => {
     setPendingDeleteId(id);
@@ -341,8 +371,18 @@ const Product = ({ navigation }) => {
         </Animated.View>
       )}
 
+      {loading && (
+        <Modal transparent animationType="fade" visible>
+          <View style={styles.overlay}>
+            <View style={styles.loaderBox}>
+              <Loading />
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* ✅ PRODUCT LIST */}
-      {refreshing && products.length === 0 ? (
+      {loading ? (
         <View style={{ padding: 16 }}>
           {[1, 2, 3, 4, 5].map(i => (
             <SkeletonCard key={i} />
@@ -621,27 +661,60 @@ const Product = ({ navigation }) => {
       <Modal visible={pickerVisible} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setPickerVisible(false)}>
           <View style={styles.pickerOverlay}>
-            <View style={styles.pickerBox}>
-              {(pickerType === 'client'
-                ? clients
-                : pickerType === 'asset'
-                ? assetTypes
-                : parts
-              ).map(item => (
-                <TouchableOpacity
-                  key={item}
-                  style={styles.pickerItem}
-                  onPress={() => {
-                    if (pickerType === 'client') setClient(item);
-                    if (pickerType === 'asset') setAssetType(item);
-                    if (pickerType === 'part') setPart(item);
-                    setPickerVisible(false);
+            {/* STOP propagation INSIDE */}
+            <TouchableWithoutFeedback onPress={() => setPickerVisible(false)}>
+              <View style={styles.centerModal}>
+                <Text style={styles.pickerTitle}>
+                  Select{' '}
+                  {String(pickerType).charAt(0).toUpperCase() +
+                    String(pickerType).slice(1)}
+                </Text>
+                <FlatList
+                  data={
+                    pickerType === 'client'
+                      ? clients
+                      : pickerType === 'asset'
+                      ? assetTypes
+                      : parts
+                  }
+                  keyExtractor={(item, index) =>
+                    item?._id ? item._id : index.toString()
+                  }
+                  showsVerticalScrollIndicator={false}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyText}>No data available</Text>
+                  }
+                  renderItem={({ item }) => {
+                    const label =
+                      pickerType === 'client' ? item.clientName : item;
+
+                    return (
+                      <TouchableOpacity
+                        style={[styles.optionRow]}
+                        onPress={() => {
+                          if (pickerType === 'client') {
+                            setClient(item.clientName);
+                            setClientId(item._id);
+                          }
+
+                          if (pickerType === 'asset') {
+                            setAssetType(item);
+                          }
+
+                          if (pickerType === 'part') {
+                            setPart(item);
+                          }
+
+                          setPickerVisible(false);
+                        }}
+                      >
+                        <Text style={[styles.optionText]}>{label}</Text>
+                      </TouchableOpacity>
+                    );
                   }}
-                >
-                  <Text style={styles.pickerText}>{item}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                />
+              </View>
+            </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -784,7 +857,7 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
           {expanded && (
             <View style={styles.expandedBox}>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Price</Text>
+                <Text style={styles.detailLabel}>Price(AVG)</Text>
                 <Text style={styles.detailValue}>₹ {item.productPrice}</Text>
               </View>
 
@@ -852,6 +925,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+  },
+
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 10,
+    marginLeft: 16,
   },
 
   swipeWrapper: {
@@ -1204,15 +1284,15 @@ const styles = StyleSheet.create({
   },
 
   pickerItem: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderColor: '#F3F4F6',
   },
 
   pickerText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#111827',
   },
 
@@ -1413,6 +1493,27 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
 
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+
+  optionActive: {
+    backgroundColor: '#F3F4F6',
+  },
+
+  optionText: {
+    fontSize: 15,
+    color: '#111827',
+  },
+
+  optionTextActive: {
+    fontWeight: '700',
+  },
+
   stockText: {
     fontSize: 12,
     fontWeight: '700',
@@ -1504,6 +1605,15 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
 
+  centerModal: {
+    width: '85%',
+    maxHeight: '65%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingVertical: 12,
+    elevation: 10,
+  },
+
   productInfo: {
     flex: 1,
   },
@@ -1534,5 +1644,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)', // 🔥 dim background
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loaderBox: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 26,
+    paddingVertical: 18,
+    borderRadius: 18,
   },
 });

@@ -30,6 +30,7 @@ import BottomNav from '../components/BottomNav';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import Loading from '../animation/Loading';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -107,6 +108,7 @@ const Sales = ({ navigation }) => {
   const [paidAmount, setPaidAmount] = useState('');
   const [pendingAmount, setPendingAmount] = useState('');
   const [pendingFromOurs, setPendingFromOurs] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
@@ -345,6 +347,7 @@ const Sales = ({ navigation }) => {
 
     if (editingSale) {
       try {
+        setLoading(true);
         const res = await api.updateSales(editingSale._id, saleData);
         const updated = res.sale || res;
         if (!updated || !updated._id) {
@@ -356,9 +359,12 @@ const Sales = ({ navigation }) => {
       } catch (err) {
         console.log('Update error:', err.message);
         Alert.alert('Error', 'Failed to update sales');
+      } finally {
+        setLoading(false);
       }
     } else {
       try {
+        setLoading(true);
         const res = await api.createSales(saleData);
         const updated = res.sale || res;
         if (!updated || !updated._id) {
@@ -370,17 +376,22 @@ const Sales = ({ navigation }) => {
       } catch (err) {
         console.log('Create error:', err.message);
         Alert.alert('Error', 'Failed to create sales');
+      } finally {
+        setLoading(false);
       }
     }
   };
 
   const handleDelete = async id => {
     try {
+      setLoading(true);
       await api.deleteSales(id);
       setSales(prev => prev.filter(item => item._id !== id));
     } catch (err) {
       console.log('Delete error:', err.message);
       Alert.alert('Error', 'Failed to delete sales');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -435,50 +446,72 @@ const Sales = ({ navigation }) => {
     }).start();
   };
 
-  const loadSales = useCallback(async () => {
-    if (refreshing) return;
-
+  const loadSales = async () => {
     try {
       setRefreshing(true);
       const res = await api.getAllSales();
       setSales(res.sales || res);
     } catch (err) {
-      console.log('Fetch error:', err.message);
+      console.log(err.message);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshing]);
+  };
 
-  const fetchClients = useCallback(async () => {
-    if (refreshing) return;
+  // const fetchClients = useCallback(async () => {
+  //   if (refreshing) return;
 
-    try {
-      setRefreshing(true);
-      const res = await api.getAllClients();
-      setClients(res.clients || res);
-    } catch (err) {
-      console.log('Client fetch error:', err.message);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing]);
+  //   try {
+  //     setRefreshing(true);
+  //     const res = await api.getAllClients();
+  //     setClients(res.clients || res);
+  //   } catch (err) {
+  //     console.log('Client fetch error:', err.message);
+  //   } finally {
+  //     setRefreshing(false);
+  //   }
+  // }, [refreshing]);
 
-  const fetchProducts = useCallback(async () => {
-    if (refreshing) return;
+  // const fetchProducts = useCallback(async () => {
+  //   if (refreshing) return;
 
-    try {
-      setRefreshing(true);
-      const res = await api.getAllProducts();
-      setProducts(res.products || res);
-    } catch (err) {
-      console.log('Product fetch error:', err.message);
-    }
-  }, [refreshing]);
+  //   try {
+  //     setRefreshing(true);
+  //     const res = await api.getAllProducts();
+  //     setProducts(res.products || res);
+  //   } catch (err) {
+  //     console.log('Product fetch error:', err.message);
+  //   }
+  // }, [refreshing]);
+
+  // useEffect(() => {
+  //   loadSales();
+  //   fetchClients();
+  //   fetchProducts();
+  // }, []);
 
   useEffect(() => {
-    loadSales();
-    fetchClients();
-    fetchProducts();
+    const init = async () => {
+      try {
+        setLoading(true);
+
+        await Promise.all([
+          api.getAllSales(),
+          api.getAllClients(),
+          api.getAllProducts(),
+        ]).then(([salesRes, clientRes, productRes]) => {
+          setSales(salesRes.sales || salesRes);
+          setClients(clientRes.clients || clientRes);
+          setProducts(productRes.products || productRes);
+        });
+      } catch (err) {
+        console.log('Init load error:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
   }, []);
 
   const openConfirm = useCallback((id, resetFunc) => {
@@ -642,8 +675,18 @@ const Sales = ({ navigation }) => {
         </View>
       </View>
 
+      {loading && (
+        <Modal transparent animationType="fade" visible>
+          <View style={styles.overlay}>
+            <View style={styles.loaderBox}>
+              <Loading />
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* ✅ Sales LIST */}
-      {refreshing && sales.length === 0 ? (
+      {loading ? (
         <View style={{ padding: 16 }}>
           {[1, 2, 3, 4, 5].map(i => (
             <SkeletonCard key={i} />
@@ -656,7 +699,7 @@ const Sales = ({ navigation }) => {
           contentContainerStyle={{ padding: 16, paddingBottom: 160 }}
           refreshControl={
             // <RefreshControl refreshing={refreshing} onRefresh={loadSales} />
-            <RefreshControl refreshing={refreshing} />
+            <RefreshControl refreshing={refreshing} onRefresh={loadSales} />
           }
           renderItem={({ item }) => (
             <SwipeCard
@@ -2330,6 +2373,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 4,
+  },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)', // 🔥 dim background
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loaderBox: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 26,
+    paddingVertical: 18,
+    borderRadius: 18,
   },
 
   amountText: {
