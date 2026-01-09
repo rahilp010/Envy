@@ -1,24 +1,102 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-native/no-inline-styles */
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  Animated,
+  Modal,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
+import AnimatedCounter from '../utility/AnimatedCounter';
+import api from '../services/api';
+import Loading from '../animation/Loading';
 
 export default function BankSystem({ navigation }) {
+  const [activeAccount, setActiveAccount] = useState('Bank'); // 'bank' | 'cash'
+  const [showBalance, setShowBalance] = useState(true);
+  const [animatedBalance] = useState(new Animated.Value(1));
+  const [account, setAccount] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const balances = {
+    bank: 20677.9,
+    cash: 8450.25,
+  };
+
+  const fetchAccount = async () => {
+    try {
+      setLoading(true);
+      const res = await api.getAllAccounts();
+      setAccount(res);
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAccount();
+  }, []);
+
+  console.log('account', account);
+  console.log('activeAccount', activeAccount);
+
+  const currentAccount = account.find(
+    acc => acc?.clientId?.accountType === activeAccount,
+  );
+
+  const currentBalance = currentAccount?.currentBalance || 0;
+
+  console.log('currentAccount', currentAccount);
+
+  console.log('currentBalance', currentBalance);
+
+  const animateBalanceChange = useCallback(() => {
+    animatedBalance.setValue(0.6);
+    Animated.spring(animatedBalance, {
+      toValue: 1,
+      friction: 6,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const toggleEye = () => {
+    Animated.timing(animatedBalance, {
+      toValue: showBalance ? 0.85 : 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowBalance(prev => !prev);
+    });
+  };
+
+  const switchAccount = type => {
+    setActiveAccount(type);
+    animateBalanceChange();
+  };
+
   return (
     <View style={styles.container} showsVerticalScrollIndicator={false}>
       {/* HEADER */}
 
       <Navbar title="Bank" page="bank" />
 
+      {loading && (
+        <Modal transparent animationType="fade" visible>
+          <View style={styles.overlay}>
+            <View style={styles.loaderBox}>
+              <Loading />
+            </View>
+          </View>
+        </Modal>
+      )}
       <View style={styles.safe}>
         {/* BALANCE CARD */}
         <LinearGradient
@@ -28,15 +106,53 @@ export default function BankSystem({ navigation }) {
           <Text style={styles.balanceLabel}>Total Balance</Text>
 
           <View style={styles.balanceRow}>
-            <Text style={styles.balanceAmount}>$20,677.90</Text>
-            <Ionicons name="eye-outline" size={18} />
+            <Animated.Text
+              style={[
+                styles.balanceAmount,
+                {
+                  transform: [{ scale: animatedBalance }],
+                  opacity: animatedBalance,
+                },
+              ]}
+            >
+              {showBalance ? (
+                <AnimatedCounter
+                  value={currentBalance || 0}
+                  style={styles.balanceAmount}
+                />
+              ) : (
+                <Text style={styles.balanceAmount}>₹••••••</Text>
+              )}
+            </Animated.Text>
+
+            <TouchableOpacity onPress={toggleEye}>
+              <Ionicons
+                name={showBalance ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+              />
+            </TouchableOpacity>
+            <Text style={{ marginTop: 4, fontSize: 12, color: '#374151' }}>
+              {activeAccount === 'Bank' ? 'Bank' : 'Cash'}
+            </Text>
           </View>
 
           <Text style={styles.cardCount}>2 Accounts</Text>
 
           <View style={styles.cardIcons}>
-            <IconCircle icon="card-outline" />
-            <IconCircle icon="wallet-outline" />
+            <TouchableOpacity onPress={() => switchAccount('Bank')}>
+              <IconCircle
+                icon="card-outline"
+                active={activeAccount === 'Bank'}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => switchAccount('Cash')}>
+              <IconCircle
+                icon="wallet-outline"
+                active={activeAccount === 'Cash'}
+              />
+            </TouchableOpacity>
+
             <IconCircle icon="add" />
           </View>
         </LinearGradient>
@@ -116,11 +232,22 @@ export default function BankSystem({ navigation }) {
 
 /* ---------- COMPONENTS ---------- */
 
-const IconCircle = ({ icon }) => (
-  <View style={styles.smallCircle}>
-    <Ionicons name={icon} size={16} />
-  </View>
-);
+const IconCircle = ({ icon, active }) => {
+  return (
+    <Animated.View
+      style={[
+        styles.smallCircle,
+        active && {
+          borderWidth: 2,
+          borderColor: '#111827',
+          transform: [{ scale: 1.1 }],
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={16} color={active ? '#111827' : '#6B7280'} />
+    </Animated.View>
+  );
+};
 
 const Action = ({ icon, label, onPress }) => (
   <TouchableOpacity style={styles.actionItem} onPress={onPress}>
@@ -153,6 +280,20 @@ const styles = StyleSheet.create({
 
   safe: {
     padding: 20,
+  },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)', // 🔥 dim background
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loaderBox: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 26,
+    paddingVertical: 18,
+    borderRadius: 18,
   },
 
   header: {

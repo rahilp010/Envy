@@ -103,7 +103,7 @@ const Sales = ({ navigation }) => {
   const [status, setStatus] = useState('pending');
   const [isPartial, setIsPartial] = useState(false);
   const [paymentType, setPaymentType] = useState('full');
-  const [paymentMethod, setPaymentMethod] = useState('bank');
+  const [paymentMethod, setPaymentMethod] = useState('Bank');
 
   const [paidAmount, setPaidAmount] = useState('');
   const [pendingAmount, setPendingAmount] = useState('');
@@ -290,7 +290,7 @@ const Sales = ({ navigation }) => {
     setStatus('pending');
     setIsPartial(false);
     setPaymentType('full');
-    setPaymentMethod('bank');
+    setPaymentMethod('Bank');
     setPaidAmount('');
     setPendingAmount('');
     setPendingFromOurs('');
@@ -415,7 +415,7 @@ const Sales = ({ navigation }) => {
     setStatus(item.statusOfTransaction || 'pending');
     setIsPartial(item.paymentType === 'partial');
     setPaymentType(item.paymentType || 'full');
-    setPaymentMethod(item.paymentMethod || 'bank');
+    setPaymentMethod(item.paymentMethod || 'Bank');
     setPaidAmount(item.paidAmount?.toString() || '');
     setPendingAmount(item.pendingAmount?.toString() || '');
     setPendingFromOurs(item.pendingFromOurs?.toString() || '');
@@ -1029,7 +1029,7 @@ const Sales = ({ navigation }) => {
 
               {/* ✅ PAYMENT METHOD */}
               <View style={styles.paymentRow}>
-                {['cash', 'bank'].map(pmethod => (
+                {['Cash', 'Bank'].map(pmethod => (
                   <TouchableOpacity
                     key={pmethod}
                     style={[

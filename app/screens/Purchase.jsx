@@ -32,6 +32,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import Loading from '../animation/Loading';
+import PaymentModal from '../utility/PaymentModal';
+import AccountSelectionModal from '../utility/AccountSelectionModal';
+import { SYSTEM_ACCOUNTS } from '../services/statics';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -76,6 +79,8 @@ const SkeletonCard = () => {
 };
 
 const Purchase = ({ navigation }) => {
+  const scrollRef = useRef(null);
+  const fieldPositions = useRef({});
   const [purchases, setPurchases] = useState([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -104,7 +109,8 @@ const Purchase = ({ navigation }) => {
   const [status, setStatus] = useState('pending');
   const [isPartial, setIsPartial] = useState(false);
   const [paymentType, setPaymentType] = useState('full');
-  const [paymentMethod, setPaymentMethod] = useState('bank');
+  const [paymentMethod, setPaymentMethod] = useState('Bank');
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
 
   const [paidAmount, setPaidAmount] = useState('');
   const [pendingAmount, setPendingAmount] = useState('');
@@ -145,9 +151,31 @@ const Purchase = ({ navigation }) => {
 
   const [appliedFilters, setAppliedFilters] = useState(null);
 
+  const [accountModalVisible, setAccountModalVisible] = useState(false);
+
+  const [accounts, setAccounts] = useState([]); // fetched from API
+  const [showPaymentMethod, setShowPaymentMethod] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+
   useEffect(() => {
     slideAnim.setValue(200);
   }, []);
+
+  const registerField = name => ({
+    onLayout: e => {
+      fieldPositions.current[name] = e.nativeEvent.layout.y;
+    },
+  });
+
+  const scrollToError = fieldName => {
+    const y = fieldPositions.current[fieldName];
+    if (y !== undefined && scrollRef.current) {
+      scrollRef.current.scrollTo({
+        y: Math.max(y - 40, 0), // offset for header
+        animated: true,
+      });
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -156,6 +184,12 @@ const Purchase = ({ navigation }) => {
 
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    api.getAllAccounts().then(res => {
+      setAccounts(res.accounts || res);
+    });
+  }, []);
 
   // Calculate totals dynamically
   const subTotal = Number(purchasePrice || 0) * Number(quantity || 0);
@@ -291,7 +325,7 @@ const Purchase = ({ navigation }) => {
     setStatus('pending');
     setIsPartial(false);
     setPaymentType('full');
-    setPaymentMethod('bank');
+    setPaymentMethod('Bank');
     setPaidAmount('');
     setPendingAmount('');
     setPendingFromOurs('');
@@ -309,14 +343,36 @@ const Purchase = ({ navigation }) => {
     setStockError('');
   };
 
-  const handleSubmit = async () => {
+  const handlePaymentMethod = () => {
     let newErrors = {};
     if (!clientName.trim()) newErrors.clientName = true;
+    if (!productName.trim()) newErrors.productName = true;
     if (!quantity.trim()) newErrors.quantity = true;
     if (!purchasePrice.trim()) newErrors.purchasePrice = true;
 
     setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
+    if (Object.keys(newErrors).length > 0) {
+      const firstErrorField = Object.keys(newErrors)[0];
+      setTimeout(() => scrollToError(firstErrorField), 100);
+      return;
+    }
+
+    setPaymentModalVisible(true);
+  };
+
+  const handleSubmit = async () => {
+    let newErrors = {};
+    if (!clientName.trim()) newErrors.clientName = true;
+    if (!productName.trim()) newErrors.productName = true;
+    if (!quantity.trim()) newErrors.quantity = true;
+    if (!purchasePrice.trim()) newErrors.purchasePrice = true;
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstErrorField = Object.keys(newErrors)[0];
+      setTimeout(() => scrollToError(firstErrorField), 100);
+      return;
+    }
 
     const purchaseData = {
       clientId: clientId,
@@ -350,8 +406,11 @@ const Purchase = ({ navigation }) => {
       try {
         setLoading(true);
         const res = await api.updatePurchase(editingPurchase._id, purchaseData);
-        const updated = res.purchase || res;
-        if (!updated || !updated._id) {
+        const updated = res;
+
+        console.log('updated', updated);
+
+        if (!updated._id) {
           throw new Error('Updated purchase missing _id');
         }
         setPurchases(prev =>
@@ -418,7 +477,7 @@ const Purchase = ({ navigation }) => {
     setStatus(item.statusOfTransaction || 'pending');
     setIsPartial(item.paymentType === 'partial');
     setPaymentType(item.paymentType || 'full');
-    setPaymentMethod(item.paymentMethod || 'bank');
+    setPaymentMethod(item.paymentMethod || 'Bank');
     setPaidAmount(item.paidAmount?.toString() || '');
     setPendingAmount(item.pendingAmount?.toString() || '');
     setPendingFromOurs(item.pendingFromOurs?.toString() || '');
@@ -806,6 +865,7 @@ const Purchase = ({ navigation }) => {
 
             {/* ✅ ONLY BODY SCROLLS */}
             <ScrollView
+              ref={scrollRef}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 30 }}
@@ -813,6 +873,7 @@ const Purchase = ({ navigation }) => {
               {/* ✅ CLIENT + PRODUCT */}
               {/* <View style={styles.row2}> */}
               <TouchableOpacity
+                {...registerField('clientName')}
                 style={[
                   styles.selectHalf,
                   { marginBottom: 12 },
@@ -834,7 +895,12 @@ const Purchase = ({ navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.selectHalf, { marginBottom: 12 }]}
+                {...registerField('productName')}
+                style={[
+                  styles.selectHalf,
+                  { marginBottom: 12 },
+                  errors.productName && styles.errorInput,
+                ]}
                 onPress={() => {
                   setPickerType('product');
                   setPickerVisible(true);
@@ -880,7 +946,14 @@ const Purchase = ({ navigation }) => {
               </View>
 
               {/* ✅ QTY + PRICE */}
-              <View style={[styles.inputHalf, { marginBottom: 12 }]}>
+              <View
+                {...registerField('quantity')}
+                style={[
+                  styles.inputHalf,
+                  { marginBottom: 12 },
+                  errors.quantity && styles.errorInput,
+                ]}
+              >
                 <View style={styles.inputRow}>
                   <Icon name="layers-outline" size={18} color="#6B7280" />
                   <TextInput
@@ -894,7 +967,14 @@ const Purchase = ({ navigation }) => {
                 </View>
               </View>
 
-              <View style={[styles.inputHalf, { marginBottom: 12 }]}>
+              <View
+                {...registerField('purchasePrice')}
+                style={[
+                  styles.inputHalf,
+                  { marginBottom: 12 },
+                  errors.purchasePrice && styles.errorInput,
+                ]}
+              >
                 <View style={styles.inputRow}>
                   <Icon name="cash-outline" size={18} color="#6B7280" />
                   <TextInput
@@ -1031,7 +1111,7 @@ const Purchase = ({ navigation }) => {
 
               {/* ✅ PAYMENT METHOD */}
               <View style={styles.paymentRow}>
-                {['cash', 'bank'].map(pmethod => (
+                {['Cash', 'Bank'].map(pmethod => (
                   <TouchableOpacity
                     key={pmethod}
                     style={[
@@ -1146,7 +1226,12 @@ const Purchase = ({ navigation }) => {
                 <FlatList
                   data={
                     pickerType === 'client' || pickerType === 'filterClient'
-                      ? clients
+                      ? clients.filter(
+                          i =>
+                            !SYSTEM_ACCOUNTS.includes(
+                              i.clientName.toLowerCase(),
+                            ),
+                        )
                       : pickerType === 'product'
                       ? products
                       : ['5', '12', '18', '28']
@@ -1318,6 +1403,56 @@ const Purchase = ({ navigation }) => {
           </View>
         </Animated.View>
       </Modal>
+
+      {/* <PaymentModal
+        paymentModalVisible={paymentModalVisible}
+        setPaymentModalVisible={setPaymentModalVisible}
+        paymentMethod={paymentMethod}
+        setPaymentMethod={setPaymentMethod}
+      /> */}
+
+      <PaymentModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        onSelect={method => {
+          setPaymentMethod(method.id);
+          setPaymentModalVisible(false);
+
+          if (method.id === 'gpay') {
+            // 🔥 NEXT STEP
+            setTimeout(() => {
+              setAccountModalVisible(true);
+            }, 200);
+            return;
+          }
+
+          if (method.id === 'cash') {
+            // ✅ instant
+            Alert.alert('Payment Selected', 'Cash');
+            return;
+          }
+
+          if (method.id === 'cheque') {
+            Alert.alert('Cheque selected', 'Open cheque details modal');
+          }
+
+          if (method.id === 'client') {
+            Alert.alert('Client Transfer', 'Open client transfer flow');
+          }
+        }}
+      />
+
+      <AccountSelectionModal
+        visible={accountModalVisible}
+        accounts={accounts}
+        onClose={() => setAccountModalVisible(false)}
+        onSelect={account => {
+          setTransactionAccount(account._id);
+          setAccountModalVisible(false);
+
+          Alert.alert('Account Selected', `${account.accountName}`);
+        }}
+      />
 
       {/* ✅ BOTTOM NAV */}
       <BottomNav navigation={navigation} active="purchase" />
@@ -2527,5 +2662,90 @@ const styles = StyleSheet.create({
 
   optionTextActive: {
     fontWeight: '700',
+  },
+
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+
+  paymentSheetPremium: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 26,
+    paddingTop: 10,
+  },
+
+  sheetHandle: {
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#D1D5DB',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  sheetSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 20,
+  },
+
+  paymentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+
+  paymentCard: {
+    width: '48%',
+    height: 120,
+    borderRadius: 22,
+    padding: 14,
+    justifyContent: 'space-between',
+    position: 'relative',
+  },
+
+  paymentCardActive: {
+    borderWidth: 2,
+    borderColor: '#111827',
+  },
+
+  paymentIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  paymentLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+  activeTick: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#16A34A',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
