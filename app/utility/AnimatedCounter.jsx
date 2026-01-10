@@ -1,11 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Text } from 'react-native';
 
+const formatINR = value =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+  }).format(value);
+
 const AnimatedCounter = ({
   value = 0,
   duration = 600,
   style,
-  formatter = v => `₹${v.toFixed(2)}`,
+  formatter = formatINR,
 }) => {
   const animatedValue = useRef(new Animated.Value(value)).current;
   const [displayValue, setDisplayValue] = useState(value);

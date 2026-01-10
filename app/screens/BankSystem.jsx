@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-native/no-inline-styles */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -17,17 +16,29 @@ import AnimatedCounter from '../utility/AnimatedCounter';
 import api from '../services/api';
 import Loading from '../animation/Loading';
 
+/* ===================== COLOR PALETTE ===================== */
+
+const COLORS = {
+  bg: '#FAFBFC',
+  card: '#FFFFFF',
+  primary: '#6C7CFF',
+  primarySoft: '#dee2f9ff',
+  accent: '#FFB703',
+  success: '#2EC4B6',
+  textPrimary: '#111827',
+  textSecondary: '#6B7280',
+  divider: '#E5E7EB',
+  glass: 'rgba(255,255,255,0.7)',
+};
+
+/* ===================== SCREEN ===================== */
+
 export default function BankSystem({ navigation }) {
-  const [activeAccount, setActiveAccount] = useState('Bank'); // 'bank' | 'cash'
+  const [activeAccount, setActiveAccount] = useState('Bank');
   const [showBalance, setShowBalance] = useState(true);
   const [animatedBalance] = useState(new Animated.Value(1));
   const [account, setAccount] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const balances = {
-    bank: 20677.9,
-    cash: 8450.25,
-  };
 
   const fetchAccount = async () => {
     try {
@@ -45,21 +56,14 @@ export default function BankSystem({ navigation }) {
     fetchAccount();
   }, []);
 
-  console.log('account', account);
-  console.log('activeAccount', activeAccount);
-
   const currentAccount = account.find(
     acc => acc?.clientId?.accountType === activeAccount,
   );
 
-  const currentBalance = currentAccount?.currentBalance || 0;
-
-  console.log('currentAccount', currentAccount);
-
-  console.log('currentBalance', currentBalance);
+  const currentBalance = currentAccount?.openingBalance || 0;
 
   const animateBalanceChange = useCallback(() => {
-    animatedBalance.setValue(0.6);
+    animatedBalance.setValue(0.85);
     Animated.spring(animatedBalance, {
       toValue: 1,
       friction: 6,
@@ -69,8 +73,8 @@ export default function BankSystem({ navigation }) {
 
   const toggleEye = () => {
     Animated.timing(animatedBalance, {
-      toValue: showBalance ? 0.85 : 1,
-      duration: 200,
+      toValue: showBalance ? 0.9 : 1,
+      duration: 180,
       useNativeDriver: true,
     }).start(() => {
       setShowBalance(prev => !prev);
@@ -83,9 +87,7 @@ export default function BankSystem({ navigation }) {
   };
 
   return (
-    <View style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* HEADER */}
-
+    <View style={styles.container}>
       <Navbar title="Bank" page="bank" />
 
       {loading && (
@@ -97,332 +99,289 @@ export default function BankSystem({ navigation }) {
           </View>
         </Modal>
       )}
-      <View style={styles.safe}>
-        {/* BALANCE CARD */}
+
+      <View style={styles.screen}>
+        {/* ===================== BALANCE CARD ===================== */}
+
         <LinearGradient
-          colors={['#F6C17A', '#E8A54D']}
-          style={styles.balanceCard}
+          colors={[COLORS.primarySoft, COLORS.bg]}
+          style={styles.mainCard}
         >
           <Text style={styles.balanceLabel}>Total Balance</Text>
 
-          <View style={styles.balanceRow}>
-            <Animated.Text
-              style={[
-                styles.balanceAmount,
-                {
-                  transform: [{ scale: animatedBalance }],
-                  opacity: animatedBalance,
-                },
-              ]}
-            >
-              {showBalance ? (
-                <AnimatedCounter
-                  value={currentBalance || 0}
-                  style={styles.balanceAmount}
-                />
-              ) : (
-                <Text style={styles.balanceAmount}>₹••••••</Text>
-              )}
-            </Animated.Text>
-
-            <TouchableOpacity onPress={toggleEye}>
-              <Ionicons
-                name={showBalance ? 'eye-outline' : 'eye-off-outline'}
-                size={20}
+          <Animated.View
+            style={{
+              transform: [{ scale: animatedBalance }],
+              opacity: animatedBalance,
+            }}
+          >
+            {showBalance ? (
+              <AnimatedCounter
+                value={currentBalance}
+                style={styles.balanceAmount}
               />
-            </TouchableOpacity>
-            <Text style={{ marginTop: 4, fontSize: 12, color: '#374151' }}>
-              {activeAccount === 'Bank' ? 'Bank' : 'Cash'}
-            </Text>
-          </View>
+            ) : (
+              <Text style={styles.balanceAmount}>₹••••••</Text>
+            )}
+          </Animated.View>
 
-          <Text style={styles.cardCount}>2 Accounts</Text>
+          <TouchableOpacity onPress={toggleEye} style={styles.eyeBtn}>
+            <Ionicons
+              name={showBalance ? 'eye-outline' : 'eye-off-outline'}
+              size={18}
+              color={COLORS.textSecondary}
+            />
+          </TouchableOpacity>
 
-          <View style={styles.cardIcons}>
+          {/* CARD TYPE SWITCH */}
+          <View style={styles.cardIconRow}>
             <TouchableOpacity onPress={() => switchAccount('Bank')}>
-              <IconCircle
-                icon="card-outline"
-                active={activeAccount === 'Bank'}
-              />
+              {/* <CardIcon icon="card-outline" active={activeAccount === 'Bank'} /> */}
+              <Text
+                style={[
+                  styles.cardIconText,
+                  activeAccount === 'Bank' && styles.cardIconTextActive,
+                ]}
+              >
+                Bank
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => switchAccount('Cash')}>
-              <IconCircle
+              {/* <CardIcon
                 icon="wallet-outline"
-                active={activeAccount === 'Cash'}
-              />
+                active={activeAccount === 'Cash'} 
+              />*/}
+              <Text
+                style={[
+                  styles.cardIconText,
+                  activeAccount === 'Cash' && styles.cardIconTextActive,
+                ]}
+              >
+                Cash
+              </Text>
             </TouchableOpacity>
 
-            <IconCircle icon="add" />
+            {/* <CardIcon icon="add-outline" /> */}
+          </View>
+
+          {/* QUICK ACTIONS */}
+          <View style={styles.actionsRow}>
+            <Action icon="add" label="Add" />
+            <Action icon="arrow-up" label="Withdraw" />
+            <Action
+              icon="swap-horizontal-outline"
+              label="Transfer"
+              onPress={() => navigation.navigate('Transfer')}
+            />
+            <Action
+              icon="unlink-outline"
+              label="Ledger"
+              onPress={() => navigation.navigate('LedgerClientList')}
+            />
           </View>
         </LinearGradient>
 
-        {/* QUICK ACTIONS */}
-        <View style={styles.actionRow}>
-          <Action
-            icon="arrow-up-outline"
-            label="Pay"
-            onPress={() => navigation.navigate('Pay')}
-          />
-          <Action
-            icon="swap-horizontal-outline"
-            label="Transfer"
-            onPress={() => navigation.navigate('Transfer')}
-          />
-          <Action
-            icon="unlink-outline"
-            label="Ledger"
-            onPress={() => navigation.navigate('LedgerClientList')}
-          />
-          <Action icon="ellipsis-horizontal" label="More" />
-        </View>
+        {/* ===================== OTHER SERVICES ===================== */}
 
         <Text style={styles.sectionTitle}>Other Services</Text>
 
-        {/* <View style={styles.currencyRow}>
-          <Currency icon="person-outline" label="Account" />
-          <Currency label="€" amount="0.97" />
-          <Currency label="£" amount="0.97" />
-          <Currency label="Ξ" amount="$2,330.17" />
-        </View> */}
-
-        <View style={styles.actionsRowFun}>
-          <ActionFunction
+        <View style={styles.serviceGrid}>
+          <ServiceCard
             icon="person-outline"
-            label="Account"
-            color="#FCE8E6"
+            label="Accounts"
             onPress={() => navigation.navigate('Account')}
           />
-          <ActionFunction
-            icon="analytics-outline"
-            label="Analytics"
-            color="#FFF2C6"
-          />
-          <TouchableOpacity
-            style={styles.fullWidthAction}
+          <ServiceCard icon="analytics-outline" label="Analytics" />
+          <ServiceWide
+            icon="unlink-outline"
+            label="Client Ledger"
             onPress={() => navigation.navigate('LedgerClientList')}
-          >
-            <Ionicons name="unlink-outline" size={20} color="#111827" />
-            <Text style={styles.fullWidthLabel}>Client Ledger</Text>
-          </TouchableOpacity>
+          />
         </View>
 
-        {/* TRANSACTIONS */}
-        {/* <Text style={styles.sectionTitle}>Last Transactions</Text>
-
-        <View style={styles.transaction}>
-          <View style={styles.transactionLeft}>
-            <View style={styles.transactionIcon}>
-              <Ionicons name="download-outline" size={18} />
-            </View>
-
-            <View>
-              <Text style={styles.transactionTitle}>Blockai studio</Text>
-              <Text style={styles.transactionTime}>2 min ago</Text>
-            </View>
-          </View>
-
-          <Text style={styles.transactionAmount}>- $37.80</Text>
-        </View> */}
+        {/* ===================== TRANSACTION ===================== */}
       </View>
+
       <BottomNav navigation={navigation} active="bank" />
     </View>
   );
 }
 
-/* ---------- COMPONENTS ---------- */
-
-const IconCircle = ({ icon, active }) => {
-  return (
-    <Animated.View
-      style={[
-        styles.smallCircle,
-        active && {
-          borderWidth: 2,
-          borderColor: '#111827',
-          transform: [{ scale: 1.1 }],
-        },
-      ]}
-    >
-      <Ionicons name={icon} size={16} color={active ? '#111827' : '#6B7280'} />
-    </Animated.View>
-  );
-};
+/* ===================== COMPONENTS ===================== */
 
 const Action = ({ icon, label, onPress }) => (
-  <TouchableOpacity style={styles.actionItem} onPress={onPress}>
+  <TouchableOpacity style={styles.action} onPress={onPress}>
     <View style={styles.actionIcon}>
-      <Ionicons name={icon} size={18} />
+      <Ionicons name={icon} size={18} color={COLORS.primary} />
     </View>
     <Text style={styles.actionLabel}>{label}</Text>
   </TouchableOpacity>
 );
 
-const ActionFunction = ({ icon, label, color, onPress }) => (
-  <View style={styles.actionItemFun}>
-    <TouchableOpacity
-      style={[styles.actionIconFun, { borderWidth: 2, borderColor: '#E5E7EB' }]}
-      onPress={onPress}
-    >
-      <Ionicons name={icon} size={18} color="#111827" />
-      <Text style={styles.actionLabelFun}>{label}</Text>
-    </TouchableOpacity>
+const CardIcon = ({ icon, active }) => (
+  <View style={[styles.cardIcon, active && styles.cardIconActive]}>
+    <Ionicons name={icon} size={22} color={active ? '#fff' : COLORS.primary} />
   </View>
 );
 
-/* ---------- STYLES ---------- */
+const ServiceCard = ({ icon, label, onPress }) => (
+  <TouchableOpacity style={styles.serviceCard} onPress={onPress}>
+    <Ionicons name={icon} size={20} color={COLORS.primary} />
+    <Text style={styles.serviceLabel}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const ServiceWide = ({ icon, label, onPress }) => (
+  <TouchableOpacity style={styles.serviceWide} onPress={onPress}>
+    <Ionicons name={icon} size={20} color={COLORS.primary} />
+    <Text style={styles.serviceWideLabel}>{label}</Text>
+  </TouchableOpacity>
+);
+
+/* ===================== STYLES ===================== */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFBFC',
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  screen: { padding: 16 },
 
-  safe: {
+  mainCard: {
+    borderRadius: 28,
     padding: 20,
-  },
-
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)', // 🔥 dim background
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  loaderBox: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 26,
-    paddingVertical: 18,
-    borderRadius: 18,
-  },
-
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#5B5CF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  avatarText: {
-    color: '#fff',
-    fontWeight: '800',
-  },
-
-  greeting: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
     elevation: 2,
-  },
-
-  balanceCard: {
-    borderRadius: 22,
-    padding: 18,
+    marginTop: -10,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
   },
 
   balanceLabel: {
-    fontSize: 14,
-    color: '#374151',
-  },
-
-  balanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
 
   balanceAmount: {
-    fontSize: 30,
-    fontWeight: '900',
+    fontSize: 34,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginTop: 6,
   },
 
-  cardCount: {
-    fontSize: 12,
-    marginTop: 4,
-    color: '#374151',
+  eyeBtn: {
+    position: 'absolute',
+    top: 18,
+    right: 18,
   },
 
-  cardIcons: {
+  cardIconRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
+    gap: 14,
+    marginTop: 22,
   },
 
-  smallCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff',
+  cardIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: COLORS.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 5,
-    backgroundColor: '#E5E7EB',
-    paddingVertical: 12,
-    borderRadius: 20,
+  cardIconActive: {
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
 
-  actionItem: {
-    alignItems: 'center',
-    flex: 1,
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 22,
   },
+
+  action: { alignItems: 'center' },
 
   actionIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   actionLabel: {
-    fontSize: 11,
     marginTop: 6,
+    fontSize: 12,
     fontWeight: '600',
+    color: COLORS.textPrimary,
   },
 
   sectionTitle: {
-    marginTop: 26,
+    marginTop: 28,
+    marginBottom: 10,
     fontSize: 16,
     fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+
+  serviceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+
+  serviceCard: {
+    width: '48%',
+    height: 72,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+
+  serviceLabel: {
+    marginTop: 6,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+
+  serviceWide: {
+    width: '100%',
+    height: 72,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+
+  serviceWideLabel: {
+    fontWeight: '700',
+    color: COLORS.textPrimary,
   },
 
   transaction: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
   },
 
   transactionLeft: {
@@ -432,115 +391,55 @@ const styles = StyleSheet.create({
   },
 
   transactionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   transactionTitle: {
     fontWeight: '700',
+    color: COLORS.textPrimary,
   },
 
   transactionTime: {
     fontSize: 11,
-    color: '#6B7280',
+    color: COLORS.textSecondary,
   },
 
   transactionAmount: {
     fontWeight: '800',
-    color: '#DC2626',
+    color: '#EF4444',
   },
 
-  currencyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 14,
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  currencyItem: {
-    width: 70,
-    height: 70,
+  loaderBox: {
+    padding: 24,
     borderRadius: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
   },
 
-  currencyLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-
-  currencyAmount: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    borderRadius: 28,
-    padding: 10,
-    marginTop: 30,
-    elevation: 6,
-  },
-
-  navIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  actionsRowFun: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  actionItemFun: {
-    width: '49%',
-    marginBottom: 6,
-    alignItems: 'center',
-    gap: 3,
-  },
-  actionIconFun: {
-    width: '100%',
-    height: 72,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 7,
-  },
-  actionLabelFun: {
-    fontSize: 15,
-    color: '#111827',
+  cardIconText: {
+    fontSize: 12,
     fontWeight: '600',
+    color: COLORS.textPrimary,
+    borderColor: COLORS.textPrimary,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 6,
+    paddingHorizontal: 14,
   },
 
-  fullWidthAction: {
-    width: '100%',
-    height: 72,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-
-  fullWidthLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+  cardIconTextActive: {
+    color: COLORS.primary,
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
   },
 });
