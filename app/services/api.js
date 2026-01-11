@@ -1,6 +1,6 @@
 // Replace with your backend URL
-// const API_URL = 'http://localhost:8001/api';
-const API_URL = 'https://electron-server-plum.vercel.app/api';
+const API_URL = 'http://10.101.54.73:8001/api';
+// const API_URL = 'https://electron-server-plum.vercel.app/api';
 
 
 const api = {

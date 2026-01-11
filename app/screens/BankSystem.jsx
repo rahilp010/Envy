@@ -34,7 +34,7 @@ const COLORS = {
 /* ===================== SCREEN ===================== */
 
 export default function BankSystem({ navigation }) {
-  const [activeAccount, setActiveAccount] = useState('Bank');
+  const [activeAccount, setActiveAccount] = useState('BANK ACCOUNT');
   const [showBalance, setShowBalance] = useState(true);
   const [animatedBalance] = useState(new Animated.Value(1));
   const [account, setAccount] = useState([]);
@@ -57,8 +57,10 @@ export default function BankSystem({ navigation }) {
   }, []);
 
   const currentAccount = account.find(
-    acc => acc?.clientId?.accountType === activeAccount,
+    acc => acc?.clientId?.clientName === activeAccount,
   );
+
+  console.log(currentAccount);
 
   const currentBalance = currentAccount?.openingBalance || 0;
 
@@ -111,7 +113,7 @@ export default function BankSystem({ navigation }) {
 
           <Animated.View
             style={{
-              transform: [{ scale: animatedBalance }],
+              // transform: [{ scale: animatedBalance }],
               opacity: animatedBalance,
             }}
           >
@@ -121,7 +123,7 @@ export default function BankSystem({ navigation }) {
                 style={styles.balanceAmount}
               />
             ) : (
-              <Text style={styles.balanceAmount}>₹••••••</Text>
+              <Text style={styles.balanceAmount}>* * * * * * *</Text>
             )}
           </Animated.View>
 
@@ -135,19 +137,19 @@ export default function BankSystem({ navigation }) {
 
           {/* CARD TYPE SWITCH */}
           <View style={styles.cardIconRow}>
-            <TouchableOpacity onPress={() => switchAccount('Bank')}>
+            <TouchableOpacity onPress={() => switchAccount('BANK ACCOUNT')}>
               {/* <CardIcon icon="card-outline" active={activeAccount === 'Bank'} /> */}
               <Text
                 style={[
                   styles.cardIconText,
-                  activeAccount === 'Bank' && styles.cardIconTextActive,
+                  activeAccount === 'BANK ACCOUNT' && styles.cardIconTextActive,
                 ]}
               >
                 Bank
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => switchAccount('Cash')}>
+            <TouchableOpacity onPress={() => switchAccount('CASH ACCOUNT')}>
               {/* <CardIcon
                 icon="wallet-outline"
                 active={activeAccount === 'Cash'} 
@@ -155,7 +157,7 @@ export default function BankSystem({ navigation }) {
               <Text
                 style={[
                   styles.cardIconText,
-                  activeAccount === 'Cash' && styles.cardIconTextActive,
+                  activeAccount === 'CASH ACCOUNT' && styles.cardIconTextActive,
                 ]}
               >
                 Cash
@@ -177,7 +179,11 @@ export default function BankSystem({ navigation }) {
             <Action
               icon="unlink-outline"
               label="Ledger"
-              onPress={() => navigation.navigate('LedgerClientList')}
+              onPress={() =>
+                navigation.navigate('LedgerClientList', {
+                  client: activeAccount,
+                })
+              }
             />
           </View>
         </LinearGradient>
@@ -217,12 +223,6 @@ const Action = ({ icon, label, onPress }) => (
     </View>
     <Text style={styles.actionLabel}>{label}</Text>
   </TouchableOpacity>
-);
-
-const CardIcon = ({ icon, active }) => (
-  <View style={[styles.cardIcon, active && styles.cardIconActive]}>
-    <Ionicons name={icon} size={22} color={active ? '#fff' : COLORS.primary} />
-  </View>
 );
 
 const ServiceCard = ({ icon, label, onPress }) => (

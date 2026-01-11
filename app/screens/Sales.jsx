@@ -31,6 +31,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import Loading from '../animation/Loading';
+import { SYSTEM_ACCOUNTS } from '../services/statics';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -1135,10 +1136,15 @@ const Sales = ({ navigation }) => {
         <TouchableWithoutFeedback onPress={() => setPickerVisible(false)}>
           <View style={styles.pickerOverlay}>
             <View style={styles.pickerBox}>
-              {(pickerType === 'client'
-                ? clients
-                : pickerType === 'filterClient'
-                ? clients
+              <Text style={styles.pickerTitle}>
+                Select{' '}
+                {String(pickerType).charAt(0).toUpperCase() +
+                  String(pickerType).slice(1)}
+              </Text>
+              {(pickerType === 'client' || pickerType === 'filterClient'
+                ? clients.filter(
+                    i => !SYSTEM_ACCOUNTS.includes(i.clientName.toLowerCase()),
+                  )
                 : pickerType === 'product'
                 ? products
                 : ['5', '12', '18', '28']
@@ -1852,7 +1858,7 @@ const styles = StyleSheet.create({
 
   pickerText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '400',
     color: '#111827',
   },
 
@@ -2417,5 +2423,12 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'capitalize',
+  },
+
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    paddingHorizontal: 18,
   },
 });

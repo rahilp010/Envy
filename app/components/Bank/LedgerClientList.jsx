@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -12,6 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import Navbar from '../Navbar';
 import api from '../../services/api';
+import { SYSTEM_ACCOUNTS } from '../../services/statics';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -55,7 +57,8 @@ const SkeletonCard = () => {
   );
 };
 
-const LedgerClientList = ({ navigation }) => {
+const LedgerClientList = ({ navigation, route }) => {
+  const { client } = route?.params || 0;
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -139,9 +142,21 @@ const LedgerClientList = ({ navigation }) => {
     }).start(() => setFilterVisible(false));
   };
 
-  const filteredClients = clients?.filter(item =>
-    item.clientName?.toLowerCase().includes(debouncedSearch.toLowerCase()),
+  const filteredClients = clients?.filter(
+    item =>
+      item.clientName?.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
+      !SYSTEM_ACCOUNTS.includes(item.clientName.toLowerCase()),
   );
+
+  const filteredAccountLedger = clients?.filter(
+    item =>
+      item.clientName === 'BANK ACCOUNT' || item.clientName === 'CASH ACCOUNT',
+  );
+
+  const data =
+    client === 'BANK ACCOUNT' || client === 'CASH ACCOUNT'
+      ? filteredAccountLedger
+      : filteredClients;
 
   return (
     <View style={styles.container}>
@@ -189,7 +204,7 @@ const LedgerClientList = ({ navigation }) => {
         </View>
       ) : (
         <FlatList
-          data={filteredClients}
+          data={data}
           keyExtractor={i => i._id}
           contentContainerStyle={{ padding: 16 }}
           ListEmptyComponent={
