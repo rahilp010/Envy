@@ -14,6 +14,7 @@ import Account from './app/components/Bank/Account';
 import Ledger from './app/components/Bank/Ledger';
 import Transfer from './app/components/Bank/Transfer';
 import LedgerClientList from './app/components/Bank/LedgerClientList';
+import Analytics from './app/screens/Analytics';
 
 // const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -125,6 +126,15 @@ function App() {
           }}
           name="LedgerClientList"
           component={LedgerClientList}
+        />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            tabBarVisible: false,
+            tabBarStyle: { display: 'none' },
+          }}
+          name="Analytics"
+          component={Analytics}
         />
         <Stack.Screen
           name="NotFound"

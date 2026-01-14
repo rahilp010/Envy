@@ -1,5 +1,7 @@
+import { Alert, Linking } from "react-native";
+
 // Replace with your backend URL
-const API_URL = 'http://10.101.54.73:8001/api';
+const API_URL = 'http://10.143.218.73:8001/api';
 // const API_URL = 'https://electron-server-plum.vercel.app/api';
 
 
@@ -408,6 +410,101 @@ const api = {
         }
     },
 
+    deleteLedgerEntry: async (id) => {
+        try {
+            const res = await fetch(`${API_URL}/ledger/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    deleteMultipleLedgerEntries: async (ids) => {
+        try {
+            const res = await fetch(`${API_URL}/ledger/bulk`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids }),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            return await res.json();
+        } catch (err) {
+            throw new Error(err.message);
+        }
+    },
+
+    getAnalytics: async (params = {}) => {
+        try {
+            const query = new URLSearchParams(
+                Object.entries(params).filter(([_, v]) => v),
+            ).toString();
+
+            const response = await fetch(
+                `${API_URL}/analytics${query ? `?${query}` : ''}`,
+                {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            );
+
+            return await response.json();
+        } catch (error) {
+            throw new Error('Network error: ' + error.message);
+        }
+    },
+
+    // openSalesPDF: async () => {
+    //     try {
+    //         const response = await fetch(`${API_URL}/sales`, {
+    //             method: 'GET',
+    //             headers: { 'Content-Type': 'application/json' },
+    //         });
+
+    //         if (!response.ok) {
+    //             const text = await response.text();
+    //             throw new Error(text);
+    //         }
+
+    //         const blob = await response.blob();
+    //         const url = URL.createObjectURL(blob);
+    //         const link = document.createElement('a');
+    //         link.href = url;
+    //         link.download = 'sales.pdf';
+    //         link.click();
+    //         URL.revokeObjectURL(url);
+    //     } catch (error) {
+    //         throw new Error('Network error: ' + error.message);
+    //     }
+    // },
+
+    openSalesPDF: async () => {
+        try {
+            await Linking.openURL(`${API_URL}/sales`);
+        } catch (e) {
+            Alert.alert('Error', 'Unable to download PDF');
+        }
+    },
+
+    openSalesExcel: async () => {
+        try {
+            await Linking.openURL(`${API_URL}/sales/excel`);
+        } catch (e) {
+            Alert.alert('Error', 'Unable to download Excel');
+        }
+    },
 
 };
 

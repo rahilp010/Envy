@@ -32,6 +32,9 @@ import api from '../services/api';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import Loading from '../animation/Loading';
 import { SYSTEM_ACCOUNTS } from '../services/statics';
+import Cash from '../../assets/cash.svg';
+import Gpay from '../../assets/googlepay.svg';
+import Idbi from '../../assets/IDBIBank.svg';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -1414,6 +1417,15 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
                     {item.statusOfTransaction}
                   </Text>
                 </View>
+                <View style={styles.paymentMethod}>
+                  {item.paymentMethod === 'Cash' ? (
+                    <Cash width={22} height={21} />
+                  ) : item.paymentMethod === 'Bank' ? (
+                    <Gpay width={22} height={20} />
+                  ) : (
+                    <Idbi width={22} height={20} />
+                  )}
+                </View>
               </View>
             </View>
 
@@ -2416,6 +2428,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start', // ✅ KEY: fit-content width
     paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 999,
+  },
+
+  paymentMethod: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    paddingHorizontal: 7,
     borderRadius: 999,
   },
 

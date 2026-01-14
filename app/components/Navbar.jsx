@@ -22,14 +22,20 @@ const Navbar = ({ title = 'Title', onSearch, onFilter, page }) => {
 
         {/* ✅ RIGHT: QUICK TOGGLES */}
         <View style={styles.right}>
-          {page === 'bank' || page === 'ledger' || page === 'transfer' ? (
+          {page === 'bank' ||
+          page === 'ledger' ||
+          page === 'transfer' ||
+          page === 'analytics' ? (
             ''
           ) : (
             <TouchableOpacity style={styles.iconBtn} onPress={onSearch}>
               <Icon name="search-outline" size={20} color="#111" />
             </TouchableOpacity>
           )}
-          {page === 'bank' || page === 'ledger' || page === 'transfer' ? (
+          {page === 'bank' ||
+          page === 'ledger' ||
+          page === 'transfer' ||
+          page === 'analytics' ? (
             ''
           ) : (
             <TouchableOpacity style={styles.iconBtn} onPress={onFilter}>

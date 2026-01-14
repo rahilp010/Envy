@@ -1,12 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-} from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -38,6 +32,7 @@ import {
 } from '../services/statics';
 import { pick } from '@react-native-documents/picker';
 import RNBlobUtil from 'react-native-blob-util';
+import ImportCsv from '../utility/ImportCsv';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -136,100 +131,6 @@ const Client = ({ navigation }) => {
       i.clientName.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
       !SYSTEM_ACCOUNTS.includes(i.clientName.toLowerCase()),
   );
-
-  const parseCSV = text => {
-    const lines = text.trim().split(/\r?\n/);
-    const headers = lines[0].split(',').map(h => h.trim());
-
-    return lines.slice(1).map((line, index) => {
-      const values = line.split(',');
-      const row = { __row: index + 2 }; // Excel row number
-
-      headers.forEach((h, i) => {
-        row[h] = values[i]?.trim() ?? '';
-      });
-
-      return row;
-    });
-  };
-
-  const validateClientRow = row => {
-    const errors = [];
-
-    if (!row.clientName) errors.push('Client name is required');
-
-    if (row.phoneNo && !/^\d{10}$/.test(row.phoneNo)) {
-      errors.push('Phone must be 10 digits');
-    }
-
-    if (row.accountType && !['Creditor', 'Debtor'].includes(row.accountType)) {
-      errors.push('AccountType must be Creditor or Debtor');
-    }
-
-    // if (
-    //   row.isEmployee.toLowerCase() &&
-    //   !['true', 'false'].includes(row.isEmployee)
-    // ) {
-    //   errors.push('isEmployee must be true or false');
-    // }
-
-    // if (row.isEmployee.toLowerCase() === 'true' && !row.salary) {
-    //   errors.push('Salary required for employee');
-    // }
-
-    return errors;
-  };
-
-  const handleCSVImport = async () => {
-    try {
-      setImporting(true);
-      setImportErrors([]);
-      setImportProgress(0);
-
-      const rows = parseCSV(csvText);
-      const errors = [];
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const rowErrors = validateClientRow(row);
-
-        if (rowErrors.length) {
-          errors.push({
-            row: row.__row,
-            clientName: row.clientName,
-            errors: rowErrors,
-          });
-          continue;
-        }
-
-        await api.createClient({
-          clientName: row.clientName.toUpperCase(),
-          phoneNo: Number(row.phoneNo || 0),
-          gstNo: row.gstNo || '',
-          address: row.address || '',
-          pendingAmount: Number(row.pendingAmount || 0),
-          paidAmount: Number(row.paidAmount || 0),
-          pendingFromOurs: Number(row.pendingFromOurs || 0),
-          accountType: row.accountType || 'Debtor',
-          isEmployee: row.isEmployee.toLowerCase() === 'true',
-          salary: Number(row.salary || 0),
-        });
-
-        setImportProgress(Math.round(((i + 1) / rows.length) * 100));
-      }
-
-      setImportErrors(errors);
-
-      if (!errors.length) {
-        setCsvModalVisible(false);
-        loadClients();
-      }
-    } catch (e) {
-      Alert.alert('Import failed');
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const pickCSVFile = async () => {
     try {
@@ -623,97 +524,12 @@ const Client = ({ navigation }) => {
         </View>
       </Modal>
 
-      <Modal visible={csvModalVisible} animationType="slide" transparent>
-        <View style={styles.csvOverlay}>
-          <View style={styles.csvModal}>
-            {/* ===== HEADER ===== */}
-            <View style={styles.csvHeader}>
-              <View>
-                <Text style={styles.csvTitle}>Import Clients</Text>
-                <Text style={styles.csvSubtitle}>
-                  Upload & validate CSV data before importing
-                </Text>
-              </View>
-
-              <TouchableOpacity onPress={() => setCsvModalVisible(false)}>
-                <Icon name="close" size={22} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            {/* ===== INFO BAR ===== */}
-            <View style={styles.csvInfoBar}>
-              <Icon name="document-text-outline" size={18} color="#2563EB" />
-              <Text style={styles.csvInfoText}>
-                CSV loaded • {csvText.split('\n').length - 1} rows detected
-              </Text>
-            </View>
-
-            {/* ===== CSV PREVIEW ===== */}
-            <View style={styles.csvPreviewBox}>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.csvPreviewText}>
-                  {csvText.slice(0, 1500)}
-                  {csvText.length > 1500 ? '\n\n…preview truncated' : ''}
-                </Text>
-              </ScrollView>
-            </View>
-
-            {/* ===== PROGRESS ===== */}
-            {importing && (
-              <View style={styles.csvProgressBox}>
-                <View style={styles.csvProgressBarBg}>
-                  <View
-                    style={[
-                      styles.csvProgressBarFill,
-                      { width: `${importProgress}%` },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.csvProgressText}>
-                  Importing… {importProgress}%
-                </Text>
-              </View>
-            )}
-
-            {/* ===== ERRORS ===== */}
-            {!!importErrors.length && (
-              <View style={styles.csvErrorBox}>
-                <Text style={styles.csvErrorTitle}>
-                  ⚠ {importErrors.length} row(s) failed
-                </Text>
-
-                <ScrollView style={{ maxHeight: 120 }}>
-                  {importErrors.map((e, i) => (
-                    <Text key={i} style={styles.csvErrorText}>
-                      Row {e.row}: {e.errors.join(', ')}
-                    </Text>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* ===== FOOTER ===== */}
-            <View style={styles.csvFooter}>
-              <TouchableOpacity
-                style={styles.csvCancelBtn}
-                onPress={() => setCsvModalVisible(false)}
-                disabled={importing}
-              >
-                <Text style={styles.csvCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.csvImportBtn}
-                onPress={handleCSVImport}
-                disabled={importing}
-              >
-                <Icon name="cloud-upload-outline" size={18} color="#fff" />
-                <Text style={styles.csvImportText}>Import</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ImportCsv
+        csvModalVisible={csvModalVisible}
+        setCsvModalVisible={setCsvModalVisible}
+        loadClients={loadClients}
+        csvText={csvText}
+      />
 
       {/* ✅ MODAL */}
       <Modal visible={modalVisible} transparent animationType="none">
@@ -1838,147 +1654,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 14,
-  },
-
-  csvOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-
-  csvModal: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    padding: 20,
-  },
-
-  csvHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-
-  csvTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-  },
-
-  csvSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-
-  csvInfoBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 14,
-  },
-
-  csvInfoText: {
-    fontSize: 13,
-    color: '#1E3A8A',
-    fontWeight: '600',
-  },
-
-  csvPreviewBox: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    backgroundColor: '#FAFAFA',
-    padding: 12,
-    height: 180,
-  },
-
-  csvPreviewText: {
-    fontFamily: 'monospace',
-    fontSize: 12,
-    color: '#111827',
-    lineHeight: 18,
-  },
-
-  csvProgressBox: {
-    marginTop: 16,
-  },
-
-  csvProgressBarBg: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-
-  csvProgressBarFill: {
-    height: '100%',
-    backgroundColor: '#22C55E',
-  },
-
-  csvProgressText: {
-    fontSize: 12,
-    color: '#374151',
-    marginTop: 6,
-    textAlign: 'right',
-  },
-
-  csvErrorBox: {
-    marginTop: 16,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    padding: 12,
-  },
-
-  csvErrorTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#991B1B',
-    marginBottom: 6,
-  },
-
-  csvErrorText: {
-    fontSize: 12,
-    color: '#7F1D1D',
-    marginBottom: 4,
-  },
-
-  csvFooter: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
-
-  csvCancelBtn: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-
-  csvCancelText: {
-    fontWeight: '700',
-    color: '#111827',
-  },
-
-  csvImportBtn: {
-    flex: 1,
-    backgroundColor: '#111827',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-
-  csvImportText: {
-    color: '#fff',
-    fontWeight: '700',
   },
 });

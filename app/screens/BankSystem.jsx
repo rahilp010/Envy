@@ -198,7 +198,11 @@ export default function BankSystem({ navigation }) {
             label="Accounts"
             onPress={() => navigation.navigate('Account')}
           />
-          <ServiceCard icon="analytics-outline" label="Analytics" />
+          <ServiceCard
+            icon="analytics-outline"
+            label="Analytics"
+            onPress={() => navigation.navigate('Analytics')}
+          />
           <ServiceWide
             icon="unlink-outline"
             label="Client Ledger"

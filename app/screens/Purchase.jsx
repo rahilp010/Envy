@@ -25,6 +25,7 @@ import {
   Switch,
   Alert,
   Platform,
+  Image,
 } from 'react-native';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
@@ -35,6 +36,9 @@ import Loading from '../animation/Loading';
 import PaymentModal from '../utility/PaymentModal';
 import AccountSelectionModal from '../utility/AccountSelectionModal';
 import { SYSTEM_ACCOUNTS } from '../services/statics';
+import Cash from '../../assets/cash.svg';
+import Gpay from '../../assets/googlepay.svg';
+import Idbi from '../../assets/IDBIBank.svg';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -1496,6 +1500,8 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
     partial: '#2563EB',
   }[item.statusOfTransaction || 'pending'];
 
+  console.log('item', item);
+
   /* ---------------- SWIPE DELETE ---------------- */
   const panResponder = useRef(
     PanResponder.create({
@@ -1572,6 +1578,15 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
                   <Text style={[styles.statusText, { color: statusColor }]}>
                     {item.statusOfTransaction}
                   </Text>
+                </View>
+                <View style={styles.paymentMethod}>
+                  {item.paymentMethod === 'Cash' ? (
+                    <Cash width={22} height={21} />
+                  ) : item.paymentMethod === 'Bank' ? (
+                    <Gpay width={22} height={20} />
+                  ) : (
+                    <Idbi width={22} height={20} />
+                  )}
                 </View>
               </View>
             </View>
@@ -2628,12 +2643,20 @@ const styles = StyleSheet.create({
   statusRow: {
     marginTop: 6,
     flexDirection: 'row',
+    gap: 5,
   },
 
   statusPill: {
     alignSelf: 'flex-start', // ✅ KEY: fit-content width
     paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 999,
+  },
+
+  paymentMethod: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    paddingHorizontal: 7,
     borderRadius: 999,
   },
 
