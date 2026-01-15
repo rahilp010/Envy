@@ -109,9 +109,6 @@ const Client = ({ navigation }) => {
 
   const [csvModalVisible, setCsvModalVisible] = useState(false);
   const [csvText, setCsvText] = useState('');
-  const [importErrors, setImportErrors] = useState([]);
-  const [importProgress, setImportProgress] = useState(0);
-  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     slideAnim.setValue(200);
@@ -525,6 +522,7 @@ const Client = ({ navigation }) => {
       </Modal>
 
       <ImportCsv
+        active="client"
         csvModalVisible={csvModalVisible}
         setCsvModalVisible={setCsvModalVisible}
         loadClients={loadClients}

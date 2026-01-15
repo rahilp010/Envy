@@ -16,12 +16,16 @@ import {
   ScrollView,
   RefreshControl,
   LayoutAnimation,
+  Alert,
 } from 'react-native';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
 import Loading from '../animation/Loading';
+import { pick } from '@react-native-documents/picker';
+import RNBlobUtil from 'react-native-blob-util';
+import ImportCsv from '../utility/ImportCsv';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -92,6 +96,9 @@ const Product = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [clients, setClients] = useState([]);
 
+  const [csvModalVisible, setCsvModalVisible] = useState(false);
+  const [csvText, setCsvText] = useState('');
+
   // const clients = ['Client A', 'Client B', 'Client C'];
   const assetTypes = ['Raw Material', 'Finished Goods', 'Assets'];
   const parts = ['Main Part', 'Spare Part', 'Accessory'];
@@ -111,6 +118,45 @@ const Product = ({ navigation }) => {
   const filteredProducts = products?.filter(item =>
     item.productName.toLowerCase().includes(debouncedSearch.toLowerCase()),
   );
+
+  const pickCSVFile = async () => {
+    try {
+      const results = await pick({
+        type: ['text/plain', 'text/csv', '*/*'],
+        allowMultiSelection: false,
+      });
+
+      if (!results || !results.length) {
+        Alert.alert('No file selected');
+        return;
+      }
+
+      const res = results[0];
+
+      console.log('PICK RESULT:', res);
+
+      // ✅ READ DIRECTLY FROM content:// USING blob-util
+      const csvText = await RNBlobUtil.fs.readFile(res.uri, 'utf8');
+
+      if (!csvText || !csvText.trim()) {
+        Alert.alert('CSV file is empty');
+        return;
+      }
+
+      setCsvText(csvText);
+      setCsvModalVisible(true);
+    } catch (err) {
+      if (
+        err?.code === 'DOCUMENT_PICKER_CANCELED' ||
+        err?.message?.includes('cancel')
+      ) {
+        return;
+      }
+
+      console.log('CSV PICK ERROR:', err);
+      Alert.alert('Failed to pick CSV file');
+    }
+  };
 
   const openSearch = () => {
     setShowSearch(true);
@@ -418,6 +464,13 @@ const Product = ({ navigation }) => {
         <Icon name="add" size={32} color="#fff" />
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={[styles.fab, { bottom: 160, backgroundColor: '#2563EB' }]}
+        onPress={pickCSVFile}
+      >
+        <Icon name="cloud-upload-outline" size={26} color="#fff" />
+      </TouchableOpacity>
+
       {/* ✅ CUSTOM DELETE CONFIRM MODAL */}
       <Modal visible={confirmVisible} transparent animationType="fade">
         <View style={styles.confirmOverlay}>
@@ -465,6 +518,14 @@ const Product = ({ navigation }) => {
           </Animated.View>
         </View>
       </Modal>
+
+      <ImportCsv
+        active="product"
+        csvModalVisible={csvModalVisible}
+        setCsvModalVisible={setCsvModalVisible}
+        loadProducts={loadProducts}
+        csvText={csvText}
+      />
 
       {/* ✅ MODAL */}
       <Modal visible={modalVisible} transparent animationType="none">
@@ -936,7 +997,6 @@ const styles = StyleSheet.create({
 
   swipeWrapper: {
     position: 'relative',
-    marginBottom: 14,
   },
 
   deleteBg: {

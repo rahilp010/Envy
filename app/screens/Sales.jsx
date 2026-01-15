@@ -2422,6 +2422,7 @@ const styles = StyleSheet.create({
   statusRow: {
     marginTop: 6,
     flexDirection: 'row',
+    gap: 5,
   },
 
   statusPill: {

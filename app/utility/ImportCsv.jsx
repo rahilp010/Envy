@@ -15,7 +15,9 @@ const ImportCsv = ({
   csvModalVisible,
   setCsvModalVisible,
   loadClients,
+  loadProducts,
   csvText,
+  active,
 }) => {
   const [importing, setImporting] = React.useState(false);
   const [importProgress, setImportProgress] = React.useState(0);
@@ -44,35 +46,87 @@ const ImportCsv = ({
   const hasRowError = rowIndex =>
     importErrors.some(e => e.row === rowIndex + 2);
 
-  const validateClientRow = row => {
-    const errors = [];
+  let validateClientRow;
+  let validateProductRow;
 
-    if (!row.clientName) errors.push('Client name is required');
+  switch (active) {
+    case 'client':
+      validateClientRow = row => {
+        const errors = [];
 
-    if (row.phoneNo && !/^\d{10}$/.test(row.phoneNo)) {
-      errors.push('Phone must be 10 digits');
-    }
+        if (!row.clientName) errors.push('Client name is required');
 
-    if (row.accountType && !['Creditor', 'Debtor'].includes(row.accountType)) {
-      errors.push('AccountType must be Creditor or Debtor');
-    }
+        if (row.phoneNo && !/^\d{10}$/.test(row.phoneNo)) {
+          errors.push('Phone must be 10 digits');
+        }
 
-    // if (
-    //   row.isEmployee.toLowerCase() &&
-    //   !['true', 'false'].includes(row.isEmployee)
-    // ) {
-    //   errors.push('isEmployee must be true or false');
-    // }
+        if (
+          row.accountType &&
+          !['Creditor', 'Debtor'].includes(row.accountType)
+        ) {
+          errors.push('AccountType must be Creditor or Debtor');
+        }
 
-    // if (row.isEmployee.toLowerCase() === 'true' && !row.salary) {
-    //   errors.push('Salary required for employee');
-    // }
+        return errors;
+      };
+      break;
 
-    return errors;
-  };
+    case 'product':
+      validateProductRow = row => {
+        const errors = [];
+
+        if (!row.productName) errors.push('Product name is required');
+
+        if (row.productPrice && !/^[0-9.]+$/.test(row.productPrice)) {
+          errors.push('Price must be a number');
+        }
+
+        return errors;
+      };
+      break;
+
+    default:
+      break;
+  }
+
+  const config =
+    active === 'client'
+      ? {
+          validate: validateClientRow,
+          importRow: row =>
+            api.createClient({
+              clientName: row.clientName?.toUpperCase(),
+              phoneNo: Number(row.phoneNo || 0),
+              gstNo: row.gstNo || '',
+              address: row.address || '',
+              pendingAmount: Number(row.pendingAmount || 0),
+              paidAmount: Number(row.paidAmount || 0),
+              pendingFromOurs: Number(row.pendingFromOurs || 0),
+              accountType: row.accountType || 'Debtor',
+              isEmployee: String(row.isEmployee).toLowerCase() === 'true',
+              salary: Number(row.salary || 0),
+            }),
+        }
+      : {
+          validate: validateProductRow,
+          importRow: row =>
+            api.createProduct({
+              productName: row.productName?.toUpperCase(),
+              productPrice: Number(row.productPrice || 0),
+              productQuantity: Number(row.productQuantity || 0),
+              clientName: row.clientName || '',
+              assetType: row.assetType || '',
+              saleHSN: row.saleHSN || '',
+              purchaseHSN: row.purchaseHSN || '',
+              taxRate: Number(row.taxRate || 0),
+              taxAmount: Number(row.taxAmount || 0),
+              totalAmountWithTax: Number(row.totalAmountWithTax || 0),
+              totalAmountWithoutTax: Number(row.totalAmountWithoutTax || 0),
+              addParts: row.part || '',
+            }),
+        };
 
   const handleCSVImport = async () => {
-    debugger;
     try {
       setImporting(true);
       setImportErrors([]);
@@ -83,29 +137,18 @@ const ImportCsv = ({
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        const rowErrors = validateClientRow(row);
+
+        const rowErrors = config.validate?.(row) ?? [];
 
         if (rowErrors.length) {
           errors.push({
             row: row.__row,
-            clientName: row.clientName,
             errors: rowErrors,
           });
           continue;
         }
 
-        await api.createClient({
-          clientName: row.clientName.toUpperCase(),
-          phoneNo: Number(row.phoneNo || 0),
-          gstNo: row.gstNo || '',
-          address: row.address || '',
-          pendingAmount: Number(row.pendingAmount || 0),
-          paidAmount: Number(row.paidAmount || 0),
-          pendingFromOurs: Number(row.pendingFromOurs || 0),
-          accountType: row.accountType || 'Debtor',
-          isEmployee: row.isEmployee.toLowerCase() === 'true',
-          salary: Number(row.salary || 0),
-        });
+        await config.importRow(row);
 
         setImportProgress(Math.round(((i + 1) / rows.length) * 100));
       }
@@ -114,10 +157,17 @@ const ImportCsv = ({
 
       if (!errors.length) {
         setCsvModalVisible(false);
-        loadClients();
+
+        if (active === 'client' && typeof loadClients === 'function') {
+          loadClients();
+        }
+
+        if (active === 'product' && typeof loadProducts === 'function') {
+          loadProducts();
+        }
       }
     } catch (e) {
-      Alert.alert('Import failed');
+      Alert.alert('Import failed', e.message);
     } finally {
       setImporting(false);
     }
@@ -133,7 +183,9 @@ const ImportCsv = ({
             {/* ===== HEADER ===== */}
             <View style={styles.csvHeader}>
               <View>
-                <Text style={styles.csvTitle}>Import Clients</Text>
+                <Text style={styles.csvTitle}>
+                  Import {active === 'client' ? 'Clients' : 'Products'}
+                </Text>
                 <Text style={styles.csvSubtitle}>
                   Upload & validate CSV data before importing
                 </Text>
