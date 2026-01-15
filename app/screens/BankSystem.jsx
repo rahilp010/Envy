@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Animated,
   Modal,
+  Pressable,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -221,24 +222,24 @@ export default function BankSystem({ navigation }) {
 /* ===================== COMPONENTS ===================== */
 
 const Action = ({ icon, label, onPress }) => (
-  <TouchableOpacity style={styles.action} onPress={onPress}>
+  <Pressable style={styles.action} onPress={onPress}>
     <View style={styles.actionIcon}>
-      <Ionicons name={icon} size={18} color={COLORS.primary} />
+      <Ionicons name={icon} size={18} />
     </View>
     <Text style={styles.actionLabel}>{label}</Text>
-  </TouchableOpacity>
+  </Pressable>
 );
 
 const ServiceCard = ({ icon, label, onPress }) => (
   <TouchableOpacity style={styles.serviceCard} onPress={onPress}>
-    <Ionicons name={icon} size={20} color={COLORS.primary} />
+    <Ionicons name={icon} size={20} />
     <Text style={styles.serviceLabel}>{label}</Text>
   </TouchableOpacity>
 );
 
 const ServiceWide = ({ icon, label, onPress }) => (
   <TouchableOpacity style={styles.serviceWide} onPress={onPress}>
-    <Ionicons name={icon} size={20} color={COLORS.primary} />
+    <Ionicons name={icon} size={20} />
     <Text style={styles.serviceWideLabel}>{label}</Text>
   </TouchableOpacity>
 );
@@ -316,6 +317,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
+    // borderWidth: 1,
+    // borderColor: '#ccc',
+    elevation: 4,
   },
 
   actionLabel: {

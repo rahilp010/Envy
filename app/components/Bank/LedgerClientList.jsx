@@ -243,6 +243,8 @@ const ClientLedgerCard = ({ item, navigation }) => {
     }
   };
 
+  console.log('item', item);
+
   return (
     <TouchableOpacity
       style={styles.card}

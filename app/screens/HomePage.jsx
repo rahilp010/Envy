@@ -15,6 +15,7 @@ import {
 } from 'react-native-safe-area-context';
 import { Animated } from 'react-native';
 import { useRef, useState } from 'react';
+import Report from '../../assets/report.svg';
 
 const { width } = Dimensions.get('window');
 
@@ -183,10 +184,13 @@ function HomeScreenContent({ navigation }) {
           <Animated.View style={{ transform: [{ scale: fabScale }] }}>
             <TouchableOpacity
               style={styles.fabInline}
-              onPress={animateFab}
+              onPress={() => {
+                // animateFab();
+                navigation.navigate('Report');
+              }}
               activeOpacity={0.9}
             >
-              <Icon name="add" size={32} color="#fff" />
+              <Report width={32} height={32} fill="#fff" />
             </TouchableOpacity>
           </Animated.View>
         </View>

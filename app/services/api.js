@@ -1,4 +1,6 @@
-import { Alert, Linking } from "react-native";
+import RNBlobUtil from 'react-native-blob-util';
+import { Alert, Linking, Platform } from "react-native";
+
 
 // Replace with your backend URL
 const API_URL = 'http://10.143.218.73:8001/api';
@@ -492,9 +494,21 @@ const api = {
 
     openSalesPDF: async () => {
         try {
-            await Linking.openURL(`${API_URL}/sales`);
-        } catch (e) {
-            Alert.alert('Error', 'Unable to download PDF');
+            const res = await RNBlobUtil.config({
+                fileCache: true,
+                appendExt: 'pdf',
+            }).fetch('GET', `${API_URL}/sales/pdf`);
+
+            console.log('DOWNLOAD SUCCESS:', res.path());
+        } catch (err) {
+            console.log('RAW ERROR:', err);
+            console.log('ERROR STRING:', String(err));
+            console.log('ERROR JSON:', JSON.stringify(err, null, 2));
+
+            Alert.alert(
+                'Download failed',
+                err?.message || 'Unknown native error',
+            );
         }
     },
 
@@ -505,6 +519,25 @@ const api = {
             Alert.alert('Error', 'Unable to download Excel');
         }
     },
+
+    getPendingCollections: async () => {
+        try {
+            const response = await fetch(`${API_URL}/reports/pendingCollection`);
+            return await response.json();
+        } catch (error) {
+            Alert.alert('Error', 'Unable to load data');
+            throw error;
+        }
+    },
+
+    getPendingPayments: async () => {
+        try {
+            const response = await fetch(`${API_URL}/reports/pendingPayment`);
+            return await response.json();
+        } catch (error) {
+            Alert.alert('Error', 'Unable to load data');
+        }
+    }
 
 };
 

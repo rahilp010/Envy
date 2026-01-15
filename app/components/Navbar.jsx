@@ -25,7 +25,8 @@ const Navbar = ({ title = 'Title', onSearch, onFilter, page }) => {
           {page === 'bank' ||
           page === 'ledger' ||
           page === 'transfer' ||
-          page === 'analytics' ? (
+          page === 'analytics' ||
+          page === 'report' ? (
             ''
           ) : (
             <TouchableOpacity style={styles.iconBtn} onPress={onSearch}>
@@ -35,7 +36,8 @@ const Navbar = ({ title = 'Title', onSearch, onFilter, page }) => {
           {page === 'bank' ||
           page === 'ledger' ||
           page === 'transfer' ||
-          page === 'analytics' ? (
+          page === 'analytics' ||
+          page === 'report' ? (
             ''
           ) : (
             <TouchableOpacity style={styles.iconBtn} onPress={onFilter}>

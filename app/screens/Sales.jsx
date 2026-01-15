@@ -1419,9 +1419,9 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
                 </View>
                 <View style={styles.paymentMethod}>
                   {item.paymentMethod === 'Cash' ? (
-                    <Cash width={22} height={21} />
+                    <Cash width={20} height={21} />
                   ) : item.paymentMethod === 'Bank' ? (
-                    <Gpay width={22} height={20} />
+                    <Gpay width={18} height={22} />
                   ) : (
                     <Idbi width={22} height={20} />
                   )}
