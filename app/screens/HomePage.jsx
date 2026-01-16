@@ -168,7 +168,7 @@ function HomeScreenContent({ navigation }) {
                 onPress={() => {
                   setActiveTab('profile');
                   animateTab(scaleProfile);
-                  navigation.navigate('NotFound');
+                  navigation.navigate('Settings');
                 }}
               >
                 <Icon
@@ -185,7 +185,7 @@ function HomeScreenContent({ navigation }) {
             <TouchableOpacity
               style={styles.fabInline}
               onPress={() => {
-                // animateFab();
+                animateFab();
                 navigation.navigate('Report');
               }}
               activeOpacity={0.9}

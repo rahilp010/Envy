@@ -2328,6 +2328,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
+    elevation: 1,
   },
 
   statLabel: {

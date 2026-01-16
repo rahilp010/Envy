@@ -3,7 +3,7 @@ import { Alert, Linking, Platform } from "react-native";
 
 
 // Replace with your backend URL
-const API_URL = 'http://10.143.218.73:8001/api';
+const API_URL = 'http://10.162.29.73:8001/api';
 // const API_URL = 'https://electron-server-plum.vercel.app/api';
 
 

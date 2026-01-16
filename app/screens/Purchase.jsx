@@ -198,11 +198,13 @@ const Purchase = ({ navigation }) => {
   // Calculate totals dynamically
   const subTotal = Number(purchasePrice || 0) * Number(quantity || 0);
   const taxAmountCalc = (subTotal * Number(taxRate || 0)) / 100;
+  const freightTaxAmountCalc =
+    (Number(freightCharges || 0) * Number(freightTax || 0)) / 100;
   const totalWithTax =
     subTotal +
     taxAmountCalc +
     Number(freightCharges || 0) +
-    Number(freightTax || 0);
+    freightTaxAmountCalc;
   const pendingCalc =
     paymentType === 'partial'
       ? Math.max(0, totalWithTax - Number(paidAmount || 0))
@@ -1182,7 +1184,8 @@ const Purchase = ({ navigation }) => {
                   <Text style={styles.totalValue}>
                     ₹
                     {(
-                      Number(freightCharges || 0) + Number(freightTax || 0)
+                      Number(freightCharges || 0) +
+                      Number(freightTaxAmountCalc || 0)
                     ).toFixed(2)}
                   </Text>
                 </View>
@@ -2547,6 +2550,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
+    elevation: 1,
   },
 
   statLabel: {

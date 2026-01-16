@@ -16,6 +16,8 @@ import Transfer from './app/components/Bank/Transfer';
 import LedgerClientList from './app/components/Bank/LedgerClientList';
 import Analytics from './app/screens/Analytics';
 import Report from './app/screens/Report';
+import Settings from './app/screens/Settings';
+import About from './app/components/Settings/About';
 
 // const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -145,6 +147,24 @@ function App() {
           }}
           name="Report"
           component={Report}
+        />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            tabBarVisible: false,
+            tabBarStyle: { display: 'none' },
+          }}
+          name="Settings"
+          component={Settings}
+        />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            tabBarVisible: false,
+            tabBarStyle: { display: 'none' },
+          }}
+          name="About"
+          component={About}
         />
         <Stack.Screen
           name="NotFound"
