@@ -8,8 +8,13 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../theme/ThemeContext';
+import { DarkTheme, LightTheme } from '../theme/color';
 
 const Navbar = ({ title = 'Title', onSearch, onFilter, page }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
   const insets = useSafeAreaInsets();
 
   return (
@@ -66,60 +71,61 @@ const Navbar = ({ title = 'Title', onSearch, onFilter, page }) => {
 
 export default Navbar;
 
-const styles = StyleSheet.create({
-  wrapper: {
-    backgroundColor: '#FAFBFC', // ✅ blends with page
-  },
+const createStyles = COLORS =>
+  StyleSheet.create({
+    wrapper: {
+      backgroundColor: COLORS.bg, // ✅ blends with page
+    },
 
-  nav: {
-    height: 80,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
+    nav: {
+      height: 80,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+    },
 
-  left: {
-    flex: 1,
-  },
+    left: {
+      flex: 1,
+    },
 
-  title: {
-    fontSize: 30,
-    fontWeight: '500',
-    color: '#0F172A', // slate-900 look
-    letterSpacing: 0.3,
-  },
+    title: {
+      fontSize: 30,
+      fontWeight: '500',
+      color: COLORS.primary, // slate-900 look
+      letterSpacing: 0.3,
+    },
 
-  right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    right: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
 
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10,
+    iconBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: '#fff',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 10,
 
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 2,
-  },
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.08,
+      shadowRadius: 5,
+      elevation: 2,
+    },
 
-  badge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF3B30',
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-});
+    badge: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#FF3B30',
+      borderWidth: 1,
+      borderColor: '#fff',
+    },
+  });

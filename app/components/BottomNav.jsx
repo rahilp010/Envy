@@ -1,8 +1,13 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useTheme } from '../theme/ThemeContext';
+import { LightTheme, DarkTheme } from '../theme/color';
 
 const BottomNav = ({ navigation, active }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
   return (
     <View style={styles.wrapper}>
       <View style={styles.nav}>
@@ -13,7 +18,7 @@ const BottomNav = ({ navigation, active }) => {
           <Icon
             name="home-outline"
             size={22}
-            color={active === 'home' ? '#000' : '#fff'}
+            color={active === 'home' ? COLORS.text : COLORS.bg}
           />
         </TouchableOpacity>
 
@@ -65,7 +70,7 @@ const BottomNav = ({ navigation, active }) => {
               active === 'report' ||
               active === 'settings' ||
               active === 'about'
-                ? '#000'
+                ? COLORS.text
                 : '#fff'
             }
           />
@@ -77,29 +82,30 @@ const BottomNav = ({ navigation, active }) => {
 
 export default BottomNav;
 
-const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    bottom: 20,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
+const createStyles = COLORS =>
+  StyleSheet.create({
+    wrapper: {
+      position: 'absolute',
+      bottom: 20,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+    },
 
-  nav: {
-    flexDirection: 'row',
-    backgroundColor: '#000',
-    borderRadius: 40,
-    padding: 6,
-  },
+    nav: {
+      flexDirection: 'row',
+      backgroundColor: COLORS.text,
+      borderRadius: 40,
+      padding: 6,
+    },
 
-  item: {
-    padding: 14,
-  },
+    item: {
+      padding: 14,
+    },
 
-  active: {
-    padding: 14,
-    backgroundColor: '#fff',
-    borderRadius: 30,
-  },
-});
+    active: {
+      padding: 14,
+      backgroundColor: COLORS.bg,
+      borderRadius: 30,
+    },
+  });

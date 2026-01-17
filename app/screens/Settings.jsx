@@ -11,23 +11,27 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
+import { useTheme } from '../theme/ThemeContext';
+import { LightTheme, DarkTheme } from '../theme/color';
 
-const COLORS = {
-  bg: '#FAFBFC',
-  card: '#FFFFFF',
-  text: '#111827',
-  muted: '#6B7280',
-  border: '#E5E7EB',
-  primary: '#111827',
-  accentBlue: '#EFF6FF',
-  accentGreen: '#E6F7E9',
-  accentRed: '#FCE8E6',
-};
+// const COLORS = {
+//   bg: '#FAFBFC',
+//   card: '#FFFFFF',
+//   text: '#111827',
+//   muted: '#6B7280',
+//   border: '#E5E7EB',
+//   primary: '#111827',
+//   accentBlue: '#EFF6FF',
+//   accentGreen: '#E6F7E9',
+//   accentRed: '#FCE8E6',
+// };
 
 const Settings = ({ navigation }) => {
+  const { theme, toggleTheme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
   const translateAnim = useRef(new Animated.Value(12)).current;
+  const styles = createStyles(COLORS);
 
-  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(false);
 
@@ -76,8 +80,8 @@ const Settings = ({ navigation }) => {
             <ToggleRow
               icon="moon-outline"
               label="Dark Mode"
-              value={darkMode}
-              onChange={setDarkMode}
+              value={theme === 'dark'}
+              onChange={toggleTheme}
             />
             <ToggleRow
               icon="notifications-outline"
@@ -114,14 +118,22 @@ const Settings = ({ navigation }) => {
 
 /* ---------------- COMPONENTS ---------------- */
 
-const Section = ({ title, children }) => (
-  <View style={{ marginBottom: 28 }}>
-    <Text style={styles.sectionTitle}>{title}</Text>
-    <View style={styles.card}>{children}</View>
-  </View>
-);
+const Section = ({ title, children }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
+  return (
+    <View style={{ marginBottom: 28 }}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.card}>{children}</View>
+    </View>
+  );
+};
 
 const Row = ({ icon, label, danger, isLast, onPress }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
   const scale = useRef(new Animated.Value(1)).current;
 
   const pressIn = () =>
@@ -147,7 +159,7 @@ const Row = ({ icon, label, danger, isLast, onPress }) => {
           <Icon
             name={icon}
             size={20}
-            color={danger ? '#DC2626' : COLORS.text}
+            color={danger ? '#DC2626' : COLORS.icon}
           />
         </View>
         <Text style={[styles.rowLabel, danger && styles.dangerText]}>
@@ -159,97 +171,103 @@ const Row = ({ icon, label, danger, isLast, onPress }) => {
   );
 };
 
-const ToggleRow = ({ icon, label, value, onChange, isLast }) => (
-  <View style={[styles.row, isLast && styles.lastRow]}>
-    <View style={styles.iconBox}>
-      <Icon name={icon} size={20} color={COLORS.text} />
+const ToggleRow = ({ icon, label, value, onChange, isLast }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
+  return (
+    <View style={[styles.row, isLast && styles.lastRow]}>
+      <View style={styles.iconBox}>
+        <Icon name={icon} size={20} color={COLORS.icon} />
+      </View>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        thumbColor={value ? COLORS.toggle : '#9CA3AF'}
+        trackColor={{ false: '#E5E7EB', true: '#D1D5DB' }}
+      />
     </View>
-    <Text style={styles.rowLabel}>{label}</Text>
-    <Switch
-      value={value}
-      onValueChange={onChange}
-      thumbColor={value ? COLORS.primary : '#9CA3AF'}
-      trackColor={{ false: '#E5E7EB', true: '#D1D5DB' }}
-    />
-  </View>
-);
+  );
+};
 
 export default Settings;
 
 /* ---------------- STYLES ---------------- */
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  safe: {
-    marginBottom: 160,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.muted,
-    marginBottom: 28,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.muted,
-    marginBottom: 10,
-    marginLeft: 4,
-  },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 22,
-    paddingVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  rowLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: COLORS.accentBlue,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  dangerIcon: {
-    backgroundColor: COLORS.accentRed,
-  },
-  dangerText: {
-    color: '#DC2626',
-  },
-  version: {
-    textAlign: 'center',
-    color: COLORS.muted,
-    fontSize: 12,
-    marginVertical: 30,
-  },
-  lastRow: {
-    borderBottomWidth: 0,
-  },
-});
+const createStyles = COLORS =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.bg,
+    },
+    safe: {
+      marginBottom: 160,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '800',
+      color: COLORS.text,
+      marginBottom: 4,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: COLORS.muted,
+      marginBottom: 28,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: COLORS.muted,
+      marginBottom: 10,
+      marginLeft: 4,
+    },
+    card: {
+      backgroundColor: COLORS.card,
+      borderRadius: 22,
+      paddingVertical: 6,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.05,
+      shadowRadius: 12,
+      elevation: 3,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border,
+    },
+    rowLabel: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: COLORS.text,
+    },
+    iconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: COLORS.glass,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 14,
+    },
+    dangerIcon: {
+      backgroundColor: COLORS.accentRed,
+    },
+    dangerText: {
+      color: '#DC2626',
+    },
+    version: {
+      textAlign: 'center',
+      color: COLORS.muted,
+      fontSize: 12,
+      marginVertical: 30,
+    },
+    lastRow: {
+      borderBottomWidth: 0,
+    },
+  });
