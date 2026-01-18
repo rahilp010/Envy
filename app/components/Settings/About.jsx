@@ -8,17 +8,22 @@ import {
   Image,
 } from 'react-native';
 import Navbar from '../Navbar';
+import { useTheme } from '../../theme/ThemeContext';
+import { DarkTheme, LightTheme } from '../../theme/color';
 
-const COLORS = {
-  bg: '#FAFBFC',
-  card: '#FFFFFF',
-  text: '#111827',
-  muted: '#6B7280',
-  border: '#E5E7EB',
-  primary: '#111827',
-};
+// const COLORS = {
+//   bg: '#FAFBFC',
+//   card: '#FFFFFF',
+//   text: '#111827',
+//   muted: '#6B7280',
+//   border: '#E5E7EB',
+//   primary: '#111827',
+// };
 
 const About = () => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
   const translateAnim = useRef(new Animated.Value(12)).current;
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
 
@@ -101,83 +106,89 @@ const About = () => {
 
 /* ---------------- SMALL COMPONENT ---------------- */
 
-const Bullet = ({ text }) => (
-  <View style={styles.bulletRow}>
-    <View style={styles.bulletDot} />
-    <Text style={styles.bulletText}>{text}</Text>
-  </View>
-);
+const Bullet = ({ text }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
+  return (
+    <View style={styles.bulletRow}>
+      <View style={styles.bulletDot} />
+      <Text style={styles.bulletText}>{text}</Text>
+    </View>
+  );
+};
 
 /* ---------------- STYLES ---------------- */
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  header: {
-    alignItems: 'center',
-    marginVertical: 30,
-  },
-  logo: {
-    width: 90,
-    height: 90,
-    marginBottom: 16,
-  },
-  appName: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  version: {
-    fontSize: 13,
-    color: COLORS.muted,
-    marginTop: 4,
-  },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 22,
-    padding: 20,
-    marginBottom: 20,
-    elevation: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: COLORS.muted,
-  },
-  bulletRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  bulletDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.primary,
-    marginRight: 10,
-  },
-  bulletText: {
-    fontSize: 14,
-    color: COLORS.muted,
-  },
-  footer: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: COLORS.muted,
-    marginTop: 30,
-  },
-});
+const createStyles = COLORS =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.bg,
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingBottom: 40,
+    },
+    header: {
+      alignItems: 'center',
+      marginVertical: 30,
+    },
+    logo: {
+      width: 90,
+      height: 90,
+      marginBottom: 16,
+    },
+    appName: {
+      fontSize: 26,
+      fontWeight: '800',
+      color: COLORS.text,
+    },
+    version: {
+      fontSize: 13,
+      color: COLORS.muted,
+      marginTop: 4,
+    },
+    card: {
+      backgroundColor: COLORS.card,
+      borderRadius: 22,
+      padding: 20,
+      marginBottom: 20,
+      elevation: 1,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: COLORS.text,
+      marginBottom: 10,
+    },
+    description: {
+      fontSize: 14,
+      lineHeight: 22,
+      color: COLORS.muted,
+    },
+    bulletRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    bulletDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: COLORS.primary,
+      marginRight: 10,
+    },
+    bulletText: {
+      fontSize: 14,
+      color: COLORS.muted,
+    },
+    footer: {
+      textAlign: 'center',
+      fontSize: 12,
+      color: COLORS.muted,
+      marginTop: 30,
+    },
+  });
 
 export default About;

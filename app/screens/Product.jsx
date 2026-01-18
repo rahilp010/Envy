@@ -17,6 +17,7 @@ import {
   RefreshControl,
   LayoutAnimation,
   Alert,
+  Switch,
 } from 'react-native';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
@@ -98,10 +99,12 @@ const Product = ({ navigation }) => {
 
   const [csvModalVisible, setCsvModalVisible] = useState(false);
   const [csvText, setCsvText] = useState('');
+  const [isMachine, setIsMachine] = useState(false);
+  const [machineParts, setMachineParts] = useState([]);
 
   // const clients = ['Client A', 'Client B', 'Client C'];
   const assetTypes = ['Raw Material', 'Finished Goods', 'Assets'];
-  const parts = ['Main Part', 'Spare Part', 'Accessory'];
+  // const parts = ['Main Part', 'Spare Part', 'Accessory'];
 
   useEffect(() => {
     slideAnim.setValue(200);
@@ -233,6 +236,8 @@ const Product = ({ navigation }) => {
     setTax('');
     setPart('');
     setErrors({});
+    setIsMachine(false);
+    setMachineParts([]);
     closeModal();
   };
 
@@ -259,6 +264,13 @@ const Product = ({ navigation }) => {
       productName: name.trim(),
       productPrice: Number(price),
       productQuantity: Number(qty),
+      productType: isMachine ? 'MACHINE' : 'PRODUCT',
+      parts: isMachine
+        ? machineParts.map(p => ({
+            productId: p.productId,
+            qtyPerMachine: p.qty,
+          }))
+        : [],
       clientName: client,
       assetType,
       saleHSN,
@@ -332,6 +344,22 @@ const Product = ({ navigation }) => {
     setPurchaseHSN(item.purchaseHSN || '');
     setTax(item.taxRate?.toString() || '');
     setPart(item.addParts || '');
+    const machine = item.productType === 'MACHINE';
+    setIsMachine(machine ? true : false);
+    const getProductName = id => {
+      const product = products.find(p => p._id === id);
+      return product ? product.productName : '';
+    };
+    setMachineParts(
+      machine
+        ? item.parts?.map(p => ({
+            productId:
+              typeof p.productId === 'object' ? p.productId._id : p.productId,
+            productName: getProductName(p.productId || p.productId._id),
+            qty: p.qtyPerMachine,
+          }))
+        : [],
+    );
 
     slideAnim.setValue(220);
     setModalVisible(true);
@@ -537,7 +565,10 @@ const Product = ({ navigation }) => {
           <Animated.View
             style={[
               styles.modalSheet,
-              { transform: [{ translateY: slideAnim }] },
+              {
+                maxHeight: '88%', // ✅ prevent overflow
+                transform: [{ translateY: slideAnim }],
+              },
             ]}
           >
             <View style={styles.dragHandle} />
@@ -555,7 +586,7 @@ const Product = ({ navigation }) => {
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.modalScroll}
+              contentContainerStyle={{ paddingBottom: 30 }}
             >
               {/* ✅ ROW 1: CLIENT + ASSET */}
               <View style={styles.row2}>
@@ -662,19 +693,86 @@ const Product = ({ navigation }) => {
                     <Icon name="add" size={18} />
                   </TouchableOpacity>
                 </View>
+              </View>
 
+              <View style={styles.toggleRow}>
+                <View>
+                  <Text style={styles.toggleTitle}>Machine Product</Text>
+                  <Text style={styles.toggleSub}>
+                    Enable if this product is built using other parts
+                  </Text>
+                </View>
+
+                <Switch
+                  value={isMachine}
+                  onValueChange={setIsMachine}
+                  trackColor={{ false: '#E5E7EB', true: '#BBF7D0' }}
+                  thumbColor={isMachine ? '#16A34A' : '#9CA3AF'}
+                />
+              </View>
+
+              {isMachine && (
                 <TouchableOpacity
-                  style={styles.selectHalf}
+                  style={styles.addPartBtn}
                   onPress={() => {
-                    setPickerType('part');
+                    setPickerType('machinePart');
                     setPickerVisible(true);
                   }}
                 >
-                  <Text style={part ? styles.selectText : styles.placeholder}>
-                    {part || 'Add Part'}
-                  </Text>
+                  <Icon name="add-circle-outline" size={18} color="#2563EB" />
+                  <Text style={styles.addPartText}>Add Machine Part</Text>
                 </TouchableOpacity>
-              </View>
+              )}
+
+              {machineParts.map((p, index) => (
+                <View style={styles.partRow}>
+                  <View style={styles.partInfo}>
+                    <Text style={styles.partName}>{p.productName}</Text>
+                    <Text style={styles.partSub}>Required per machine</Text>
+                  </View>
+
+                  <View style={styles.partQtyBox}>
+                    <TouchableOpacity
+                      style={styles.qtyBtn}
+                      onPress={() =>
+                        setMachineParts(arr =>
+                          arr.map((x, i) =>
+                            i === index
+                              ? { ...x, qty: Math.max(1, x.qty - 1) }
+                              : x,
+                          ),
+                        )
+                      }
+                    >
+                      <Icon name="remove" size={14} />
+                    </TouchableOpacity>
+
+                    <Text style={styles.partQty}>{p.qty}</Text>
+
+                    <TouchableOpacity
+                      style={styles.qtyBtn}
+                      onPress={() =>
+                        setMachineParts(arr =>
+                          arr.map((x, i) =>
+                            i === index ? { ...x, qty: x.qty + 1 } : x,
+                          ),
+                        )
+                      }
+                    >
+                      <Icon name="add" size={14} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.removePartBtn}
+                    onPress={() =>
+                      setMachineParts(arr => arr.filter((_, i) => i !== index))
+                    }
+                  >
+                    <Icon name="trash-outline" size={18} color="#DC2626" />
+                  </TouchableOpacity>
+                </View>
+              ))}
 
               {/* ✅ TOTAL SUMMARY CARD (FULL WIDTH BELOW) */}
               <View style={styles.totalCard}>
@@ -736,7 +834,9 @@ const Product = ({ navigation }) => {
                       ? clients
                       : pickerType === 'asset'
                       ? assetTypes
-                      : parts
+                      : pickerType === 'machinePart'
+                      ? products.filter(p => p.type !== 'MACHINE')
+                      : []
                   }
                   keyExtractor={(item, index) =>
                     item?._id ? item._id : index.toString()
@@ -746,8 +846,15 @@ const Product = ({ navigation }) => {
                     <Text style={styles.emptyText}>No data available</Text>
                   }
                   renderItem={({ item }) => {
-                    const label =
-                      pickerType === 'client' ? item.clientName : item;
+                    let label = '';
+
+                    if (pickerType === 'client') {
+                      label = item.clientName;
+                    } else if (pickerType === 'asset') {
+                      label = item;
+                    } else if (pickerType === 'machinePart') {
+                      label = item.productName;
+                    }
 
                     return (
                       <TouchableOpacity
@@ -762,9 +869,32 @@ const Product = ({ navigation }) => {
                             setAssetType(item);
                           }
 
-                          if (pickerType === 'part') {
-                            setPart(item);
+                          if (pickerType === 'machinePart') {
+                            setMachineParts(prev => {
+                              if (prev.some(p => p.productId === item._id))
+                                return prev;
+
+                              return [
+                                ...prev,
+                                {
+                                  productId: item._id,
+                                  productName: item.productName,
+                                  qty: 1,
+                                },
+                              ];
+                            });
                           }
+
+                          // if (pickerType === 'machinePart') {
+                          //   setMachineParts(prev => [
+                          //     ...prev,
+                          //     {
+                          //       productId: item._id,
+                          //       productName: item.productName,
+                          //       qty: 1,
+                          //     },
+                          //   ]);
+                          // }
 
                           setPickerVisible(false);
                         }}
@@ -943,6 +1073,17 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
                 <Text style={styles.detailLabel}>Tax</Text>
                 <Text style={styles.detailValue}>{item.taxRate}%</Text>
               </View>
+
+              {item.type === 'MACHINE' && (
+                <View>
+                  <Text style={{ fontWeight: 'bold' }}>Machine Parts</Text>
+                  {item.parts.map(p => (
+                    <Text key={p.productId}>
+                      • {p.productName} × {p.qtyPerMachine}
+                    </Text>
+                  ))}
+                </View>
+              )}
 
               <View style={styles.totalDivider} />
 
@@ -1718,5 +1859,109 @@ const styles = StyleSheet.create({
     paddingHorizontal: 26,
     paddingVertical: 18,
     borderRadius: 18,
+  },
+
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+
+  toggleTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  toggleSub: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  addPartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#93C5FD',
+    backgroundColor: '#EFF6FF',
+    marginBottom: 12,
+  },
+
+  addPartText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+
+  partRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 10,
+  },
+
+  partInfo: {
+    flex: 1,
+  },
+
+  partName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  partSub: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  partQtyBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  qtyBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  partQty: {
+    minWidth: 20,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  removePartBtn: {
+    marginLeft: 10,
   },
 });
