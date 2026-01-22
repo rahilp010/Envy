@@ -3,20 +3,19 @@ import { Alert, Linking, Platform } from "react-native";
 
 
 // Replace with your backend URL
-const API_URL = 'http://10.162.29.73:8001/api';
+const API_URL = 'http://10.234.9.73:8001/api';
 // const API_URL = 'https://electron-server-plum.vercel.app/api';
 
-
 const api = {
-    // Create new account
-    createAccount: async (accountData) => {
+
+    signup: async (userData) => {
         try {
-            const response = await fetch(`${API_URL}/accounts/create`, {
+            const response = await fetch(`${API_URL}/auth/signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(accountData),
+                body: JSON.stringify(userData),
             });
             return await response.json();
         } catch (error) {
@@ -24,15 +23,29 @@ const api = {
         }
     },
 
-    // Login
-    login: async (email, password) => {
+    login: async (userData) => {
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userData),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Login failed');
+        }
+
+        return data;
+    },
+
+    logout: async () => {
         try {
-            const response = await fetch(`${API_URL}/accounts/login`, {
+            const response = await fetch(`${API_URL}/auth/logout`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, password }),
             });
             return await response.json();
         } catch (error) {

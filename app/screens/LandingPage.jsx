@@ -75,7 +75,7 @@ export default function LandingPage({ navigation }) {
 
         <TouchableOpacity
           style={styles.cta}
-          onPress={() => navigation.replace('HomePage')}
+          onPress={() => navigation.replace('Login')}
         >
           <Text style={styles.ctaText}>Get Started</Text>
           <View style={styles.ctaIcon}>

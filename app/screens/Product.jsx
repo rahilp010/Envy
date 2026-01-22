@@ -22,11 +22,12 @@ import {
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
 import Icon from 'react-native-vector-icons/Ionicons';
-import api from '../services/api';
+import api, { SOCKET_URL } from '../services/api';
 import Loading from '../animation/Loading';
 import { pick } from '@react-native-documents/picker';
 import RNBlobUtil from 'react-native-blob-util';
 import ImportCsv from '../utility/ImportCsv';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -101,6 +102,15 @@ const Product = ({ navigation }) => {
   const [csvText, setCsvText] = useState('');
   const [isMachine, setIsMachine] = useState(false);
   const [machineParts, setMachineParts] = useState([]);
+  const [appliedFilters, setAppliedFilters] = useState(null);
+
+  const [filterVisible, setFilterVisible] = useState(false);
+  const filterAnim = useRef(new Animated.Value(300)).current;
+
+  const [filterProductId, setFilterProductId] = useState(null);
+  const [filterProductName, setFilterProductName] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
 
   // const clients = ['Client A', 'Client B', 'Client C'];
   const assetTypes = ['Raw Material', 'Finished Goods', 'Assets'];
@@ -118,9 +128,55 @@ const Product = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const filteredProducts = products?.filter(item =>
-    item.productName.toLowerCase().includes(debouncedSearch.toLowerCase()),
-  );
+  const filteredProducts = products?.filter(item => {
+    const searchText = debouncedSearch.toLowerCase();
+
+    const productNameDb = item?.productName?.toLowerCase() || '';
+
+    const searchMatch = productNameDb.includes(searchText);
+
+    if (!searchMatch) return false;
+
+    if (!appliedFilters) return true;
+
+    if (
+      appliedFilters.productId &&
+      item?.productId?._id !== appliedFilters.clientId
+    ) {
+      return false;
+    }
+
+    const itemDate = new Date(item.date).setHours(0, 0, 0, 0);
+
+    if (appliedFilters.fromDate) {
+      const from = new Date(appliedFilters.fromDate).setHours(0, 0, 0, 0);
+      if (itemDate < from) return false;
+    }
+
+    if (appliedFilters.toDate) {
+      const to = new Date(appliedFilters.toDate).setHours(0, 0, 0, 0);
+      if (itemDate > to) return false;
+    }
+
+    return true;
+  });
+
+  const openFilter = () => {
+    setFilterVisible(true);
+    Animated.timing(filterAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeFilter = () => {
+    Animated.timing(filterAnim, {
+      toValue: 300,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => setFilterVisible(false));
+  };
 
   const pickCSVFile = async () => {
     try {
@@ -308,6 +364,8 @@ const Product = ({ navigation }) => {
 
         setProducts(prev => [updated, ...prev]);
 
+        productData.productType === 'MACHINE' ? loadProducts() : '';
+
         handleReset();
       } catch (err) {
         console.log('Update error:', err.message);
@@ -325,6 +383,8 @@ const Product = ({ navigation }) => {
       await api.deleteProduct(id);
 
       setProducts(prev => prev.filter(item => item._id !== id));
+
+      loadProducts();
     } catch (err) {
       console.log('Delete error:', err.message);
     } finally {
@@ -408,7 +468,7 @@ const Product = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Navbar title="Products" onSearch={openSearch} />
+      <Navbar title="Products" onSearch={openSearch} onFilter={openFilter} />
 
       {/* ✅ SEARCH BAR */}
       {showSearch && (
@@ -682,7 +742,7 @@ const Product = ({ navigation }) => {
                     <Icon name="remove" size={18} />
                   </TouchableOpacity>
 
-                  <Text style={styles.qtyText}>{qty || '1'}</Text>
+                  <Text style={styles.qtyText}>{qty || 0}</Text>
 
                   <TouchableOpacity
                     style={styles.stepBtn}
@@ -908,6 +968,107 @@ const Product = ({ navigation }) => {
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
+      </Modal>
+
+      <Modal visible={filterVisible} transparent animationType="none">
+        <TouchableWithoutFeedback onPress={closeFilter}>
+          <View style={styles.filterBackdrop} />
+        </TouchableWithoutFeedback>
+
+        <Animated.View
+          style={[
+            styles.filterSidebar,
+            { transform: [{ translateX: filterAnim }] },
+          ]}
+        >
+          <Text style={styles.filterTitle}>Filters</Text>
+
+          {/* 📅 FROM DATE */}
+          <TouchableOpacity
+            style={styles.input}
+            onPress={() =>
+              DateTimePickerAndroid.open({
+                value: filterFromDate ? new Date(filterFromDate) : new Date(),
+                mode: 'date',
+                onChange: (_, d) =>
+                  d && setFilterFromDate(d.toISOString().split('T')[0]),
+              })
+            }
+          >
+            <Text
+              style={filterFromDate ? styles.selectText : styles.placeholder}
+            >
+              {filterFromDate || 'From Date'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* 📅 TO DATE */}
+          <TouchableOpacity
+            style={styles.input}
+            onPress={() =>
+              DateTimePickerAndroid.open({
+                value: filterToDate ? new Date(filterToDate) : new Date(),
+                mode: 'date',
+                onChange: (_, d) =>
+                  d && setFilterToDate(d.toISOString().split('T')[0]),
+              })
+            }
+          >
+            <Text style={filterToDate ? styles.selectText : styles.placeholder}>
+              {filterToDate || 'To Date'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* 👤 CLIENT */}
+          <TouchableOpacity
+            style={styles.input}
+            onPress={() => {
+              setPickerType('filterProduct');
+              setPickerVisible(true);
+            }}
+          >
+            <Text
+              style={filterProductName ? styles.selectText : styles.placeholder}
+            >
+              {filterProductName || 'Select Product'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.resetBtn}
+            onPress={() => {
+              setFilterProductId(null);
+              setFilterProductName('');
+              setFilterFromDate('');
+              setFilterToDate('');
+              setAppliedFilters(null);
+              closeFilter();
+            }}
+          >
+            <Text style={styles.cancelText}>Clear Filters</Text>
+          </TouchableOpacity>
+
+          {/* ACTIONS */}
+          <View style={styles.filterActions}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={closeFilter}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={() => {
+                setAppliedFilters({
+                  ProductId: filterProductId,
+                  fromDate: filterFromDate,
+                  toDate: filterToDate,
+                });
+                closeFilter();
+              }}
+            >
+              <Text style={styles.saveText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </Modal>
 
       {/* ✅ BOTTOM NAV */}
@@ -1963,5 +2124,40 @@ const styles = StyleSheet.create({
 
   removePartBtn: {
     marginLeft: 10,
+  },
+
+  filterBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+
+  filterSidebar: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '80%',
+    backgroundColor: '#fff',
+    padding: 20,
+    elevation: 20,
+  },
+
+  filterTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 20,
+  },
+
+  filterActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+
+  resetBtn: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
   },
 });

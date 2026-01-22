@@ -18,6 +18,8 @@ import Analytics from './app/screens/Analytics';
 import Report from './app/screens/Report';
 import Settings from './app/screens/Settings';
 import About from './app/components/Settings/About';
+import Login from './app/screens/Login';
+import Signup from './app/screens/Signup';
 import { ThemeProvider } from './app/theme/ThemeContext';
 
 // const Tab = createBottomTabNavigator();
@@ -167,6 +169,24 @@ function App() {
             }}
             name="About"
             component={About}
+          />
+          <Stack.Screen
+            options={{
+              headerShown: false,
+              tabBarVisible: false,
+              tabBarStyle: { display: 'none' },
+            }}
+            name="Login"
+            component={Login}
+          />
+          <Stack.Screen
+            options={{
+              headerShown: false,
+              tabBarVisible: false,
+              tabBarStyle: { display: 'none' },
+            }}
+            name="Signup"
+            component={Signup}
           />
           <Stack.Screen
             name="NotFound"
