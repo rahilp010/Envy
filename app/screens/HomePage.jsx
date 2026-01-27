@@ -70,10 +70,7 @@ function HomeScreenContent({ navigation }) {
         ]}
       >
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.menuCircle}
-            onPress={() => navigation.navigate('Login')}
-          >
+          <TouchableOpacity style={styles.menuCircle}>
             <Icon name="menu-outline" size={34} color="#000" />
           </TouchableOpacity>
 

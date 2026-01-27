@@ -8,17 +8,23 @@ import {
   TextInput,
   Animated,
   StatusBar,
-  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
+import AlertBox from '../components/AlertBox';
 
 export default function Signup({ navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalData, setModalData] = useState({
+    title: '',
+    message: '',
+    type: 'info',
+  });
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -81,14 +87,21 @@ export default function Signup({ navigation }) {
         password,
       });
 
-      Alert.alert('Success', 'Account created successfully');
+      setModalData({
+        title: 'Account created successfully',
+        message: 'You can now login with your credentials',
+        type: 'success',
+      });
+      setModalVisible(true);
       navigation.replace('Login'); // back to login
     } catch (err) {
       shake();
-      Alert.alert(
-        'Signup Failed',
-        err?.response?.data?.message || 'Something went wrong',
-      );
+      setModalData({
+        title: 'Signup Failed',
+        message: err?.response?.data?.message || 'Something went wrong',
+        type: 'error',
+      });
+      setModalVisible(true);
     }
   };
 
@@ -202,6 +215,14 @@ export default function Signup({ navigation }) {
             Login
           </Text>
         </Text>
+
+        <AlertBox
+          visible={modalVisible}
+          title={modalData.title}
+          message={modalData.message}
+          type={modalData.type}
+          onClose={() => setModalVisible(false)}
+        />
       </Animated.View>
     </View>
   );

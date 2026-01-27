@@ -1,10 +1,20 @@
 import RNBlobUtil from 'react-native-blob-util';
 import { Alert, Linking, Platform } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 // Replace with your backend URL
 const API_URL = 'http://10.234.9.73:8001/api';
 // const API_URL = 'https://electron-server-plum.vercel.app/api';
+const getAuthHeaders = async () => {
+    const token = await AsyncStorage.getItem('token');
+
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+};
+
 
 const api = {
 
@@ -12,9 +22,7 @@ const api = {
         try {
             const response = await fetch(`${API_URL}/auth/signup`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData),
             });
             return await response.json();
@@ -43,9 +51,7 @@ const api = {
         try {
             const response = await fetch(`${API_URL}/auth/logout`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: await getAuthHeaders(),
             });
             return await response.json();
         } catch (error) {
@@ -68,9 +74,7 @@ const api = {
         try {
             const response = await fetch(`${API_URL}/transfer`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(transferData),
             });
             return await response.json();
@@ -110,7 +114,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/products`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(productData),
             });
 
@@ -129,7 +133,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/products/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(productData),
             });
 
@@ -163,7 +167,9 @@ const api = {
 
     getAllProducts: async () => {
         try {
-            const response = await fetch(`${API_URL}/products`);
+            const response = await fetch(`${API_URL}/products`, {
+                headers: await getAuthHeaders(),
+            });
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);
@@ -177,7 +183,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/clients`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(clientData),
             });
 
@@ -196,7 +202,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/clients/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(clientData),
             });
 

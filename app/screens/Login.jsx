@@ -15,16 +15,30 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import AlertBox from '../components/AlertBox';
+import HapticFeedback from 'react-native-haptic-feedback';
 
 export default function Auth({ navigation }) {
   const [mode, setMode] = useState('email'); // phone | email
   const [value, setValue] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [uiReady, setUiReady] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalData, setModalData] = useState({
+    title: '',
+    message: '',
+    type: 'info',
+  });
+
+  const hapticOptions = {
+    enableVibrateFallback: true,
+    ignoreAndroidSystemSettings: false,
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -38,7 +52,9 @@ export default function Auth({ navigation }) {
         duration: 600,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]).start(() => {
+      setUiReady(true);
+    });
   }, []);
 
   const shake = () => {
@@ -99,10 +115,12 @@ export default function Auth({ navigation }) {
       navigation.replace('HomePage');
     } catch (err) {
       shake();
-      Alert.alert(
-        'Authentication Failed',
-        err?.message || err?.response?.data?.message || 'Something went wrong',
-      );
+      setModalData({
+        title: 'Authentication Failed',
+        message: err?.message || 'Invalid email or password',
+        type: 'error',
+      });
+      setModalVisible(true);
     }
   };
 
@@ -118,14 +136,24 @@ export default function Auth({ navigation }) {
           styles.card,
           {
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
+            transform: [{ translateY: slideAnim }, { translateX: shakeAnim }],
           },
         ]}
       >
         {/* HEADER */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Login Account</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              delayLongPress={1000}
+              onLongPress={() => {
+                HapticFeedback.trigger('impactMedium', hapticOptions);
+                navigation.navigate('Signup');
+              }}
+            >
+              <Text style={styles.title}>Login Account</Text>
+            </TouchableOpacity>
+
             <Text style={styles.subtitle}>Welcome back, let’s continue</Text>
           </View>
         </View>
@@ -136,12 +164,16 @@ export default function Auth({ navigation }) {
             <TouchableOpacity
               key={type}
               activeOpacity={0.85}
+              android_ripple={null}
               onPress={() => {
                 setMode(type);
                 setValue('');
                 setPassword('');
               }}
-              style={[styles.toggleBtn, mode === type && styles.toggleActive]}
+              style={[
+                styles.toggleBtn,
+                uiReady && mode === type && styles.toggleActive,
+              ]}
             >
               <Text
                 style={[
@@ -243,14 +275,29 @@ export default function Auth({ navigation }) {
 
         {/* FOOTER */}
         <Text style={styles.footer}>
-          Don’t have an account?{' '}
+          Need access?{' '}
           <Text
             style={styles.signup}
-            onPress={() => navigation.navigate('Signup')}
+            onPress={() => {
+              setModalData({
+                title: 'Contact Envy',
+                message: 'Please contact Envy support to create an account.',
+                type: 'info',
+              });
+              setModalVisible(true);
+            }}
           >
-            Sign Up
+            Contact Envy
           </Text>
         </Text>
+
+        <AlertBox
+          visible={modalVisible}
+          title={modalData.title}
+          message={modalData.message}
+          type={modalData.type}
+          onClose={() => setModalVisible(false)}
+        />
       </Animated.View>
     </View>
   );
@@ -345,7 +392,12 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   toggleBtn: { flex: 1, paddingVertical: 12, borderRadius: 14 },
-  toggleActive: { backgroundColor: '#fff', elevation: 2 },
+  toggleActive: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
   toggleText: { textAlign: 'center', fontWeight: '600', color: '#6B7280' },
   toggleTextActive: { color: '#4338CA' },
 
