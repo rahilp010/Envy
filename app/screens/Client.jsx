@@ -122,12 +122,18 @@ const Client = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const filteredClients = clients?.filter(
-    i =>
-      i.clientName &&
-      i.clientName.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
-      !SYSTEM_ACCOUNTS.includes(i.clientName.toLowerCase()),
-  );
+  const searchText = debouncedSearch?.trim().toLowerCase() || '';
+
+  const filteredClients = Array.isArray(clients)
+    ? clients.filter(i => {
+        const name = i?.clientName?.toLowerCase() || '';
+
+        return (
+          name.includes(searchText) &&
+          !SYSTEM_ACCOUNTS.map(a => a.toLowerCase()).includes(name)
+        );
+      })
+    : [];
 
   const pickCSVFile = async () => {
     try {

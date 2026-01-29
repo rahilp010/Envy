@@ -13,6 +13,7 @@ import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
 import { useTheme } from '../theme/ThemeContext';
 import { LightTheme, DarkTheme } from '../theme/color';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // const COLORS = {
 //   bg: '#FAFBFC',
@@ -42,6 +43,20 @@ const Settings = ({ navigation }) => {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  useEffect(() => {
+    const loadBiometricSetting = async () => {
+      const saved = await AsyncStorage.getItem('biometricEnabled');
+      setBiometric(saved === 'true');
+    };
+
+    loadBiometricSetting();
+  }, []);
+
+  const toggleBiometric = async value => {
+    setBiometric(value);
+    await AsyncStorage.setItem('biometricEnabled', value ? 'true' : 'false');
+  };
 
   return (
     <Animated.View
@@ -93,7 +108,7 @@ const Settings = ({ navigation }) => {
               icon="finger-print-outline"
               label="Biometric Lock"
               value={biometric}
-              onChange={setBiometric}
+              onChange={toggleBiometric}
               isLast
             />
           </Section>

@@ -1,4 +1,4 @@
-import { StatusBar } from 'react-native';
+import { AppState, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import LandingPage from './app/screens/LandingPage';
 import HomePage from './app/screens/HomePage';
@@ -20,6 +20,8 @@ import Settings from './app/screens/Settings';
 import About from './app/components/Settings/About';
 import Login from './app/screens/Login';
 import Signup from './app/screens/Signup';
+import AuthGuard from './app/screens/AuthGuard';
+import Bootstarp from './app/utility/BootStrap';
 import { ThemeProvider } from './app/theme/ThemeContext';
 
 // const Tab = createBottomTabNavigator();
@@ -34,7 +36,16 @@ function App() {
         }}
       >
         <StatusBar barStyle="light-content" />
-        <Stack.Navigator initialRouteName="Dashboard">
+        <Stack.Navigator initialRouteName="AuthGuard">
+          <Stack.Screen
+            options={{
+              headerShown: false,
+              tabBarVisible: false,
+              tabBarStyle: { display: 'none' },
+            }}
+            name="AuthGuard"
+            component={AuthGuard}
+          />
           <Stack.Screen
             options={{
               headerShown: false,
@@ -43,6 +54,15 @@ function App() {
             }}
             name="Dashboard"
             component={LandingPage}
+          />
+          <Stack.Screen
+            options={{
+              headerShown: false,
+              tabBarVisible: false,
+              tabBarStyle: { display: 'none' },
+            }}
+            name="Bootstrap"
+            component={Bootstarp}
           />
           <Stack.Screen
             options={{
