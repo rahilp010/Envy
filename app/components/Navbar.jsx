@@ -33,6 +33,7 @@ const Navbar = ({ title = 'Title', onSearch, onFilter, page }) => {
           page === 'analytics' ||
           page === 'report' ||
           page === 'settings' ||
+          page === 'profile' ||
           page === 'about' ? (
             ''
           ) : (
@@ -46,6 +47,7 @@ const Navbar = ({ title = 'Title', onSearch, onFilter, page }) => {
           page === 'analytics' ||
           page === 'report' ||
           page === 'settings' ||
+          page === 'profile' ||
           page === 'about' ? (
             ''
           ) : (

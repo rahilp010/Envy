@@ -14,12 +14,16 @@ export default function AlertBox({
   title,
   message,
   onClose,
-  actionText = 'OK',
+  onConfirm,
+  actionTextSuccess = '',
+  actionTextDecline = '',
   type = 'info', // info | error | success
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
+  // const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  /* ---------- ENTRY ANIMATION ---------- */
   useEffect(() => {
     if (visible) {
       Animated.parallel([
@@ -34,9 +38,12 @@ export default function AlertBox({
           useNativeDriver: true,
         }),
       ]).start();
+
+      // 💓 ICON PULSE
     } else {
       fadeAnim.setValue(0);
       slideAnim.setValue(40);
+      // pulseAnim.setValue(1);
     }
   }, [visible]);
 
@@ -74,25 +81,48 @@ export default function AlertBox({
             },
           ]}
         >
-          {/* ICON */}
-          <View style={[styles.iconWrapper, { backgroundColor: icon.bg }]}>
+          {/* ICON WITH PULSE */}
+          <Animated.View
+            style={[
+              styles.iconWrapper,
+              {
+                backgroundColor: icon.bg,
+              },
+            ]}
+          >
             <Icon name={icon.name} size={42} color={icon.color} />
-          </View>
+          </Animated.View>
 
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
+          {!!message && <Text style={styles.message}>{message}</Text>}
 
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: icon.color }]}
-            onPress={onClose}
-          >
-            <Text style={styles.btnText}>{actionText}</Text>
-          </TouchableOpacity>
+          {/* ACTION BUTTONS */}
+          <View style={styles.actionButtons}>
+            {!!actionTextDecline && (
+              <TouchableOpacity
+                style={[styles.btn, styles.outlineBtn]}
+                onPress={onClose}
+              >
+                <Text style={styles.outlineText}>{actionTextDecline}</Text>
+              </TouchableOpacity>
+            )}
+
+            {!!actionTextSuccess && (
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: icon.color }]}
+                onPress={onConfirm || onClose}
+              >
+                <Text style={styles.btnText}>{actionTextSuccess}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </Animated.View>
       </View>
     </Modal>
   );
 }
+
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   overlay: {
@@ -137,15 +167,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
   btn: {
-    backgroundColor: '#4F46E5',
     borderRadius: 14,
     paddingVertical: 12,
-    paddingHorizontal: 56,
+    paddingHorizontal: 26,
+    minWidth: 110,
+    alignItems: 'center',
   },
 
   btnText: {
     color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  outlineBtn: {
+    backgroundColor: '#F3F4F6',
+  },
+
+  outlineText: {
+    color: '#111827',
     fontSize: 15,
     fontWeight: '700',
   },

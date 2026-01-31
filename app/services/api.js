@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 // Replace with your backend URL
-const API_URL = 'http://10.234.9.73:8001/api';
+const API_URL = 'http://10.31.37.73:8001/api';
 // const API_URL = 'https://electron-server-plum.vercel.app/api';
 const getAuthHeaders = async () => {
     const token = await AsyncStorage.getItem('token');
@@ -62,7 +62,7 @@ const api = {
     // Get account balance
     getBalance: async (accountNumber) => {
         try {
-            const response = await fetch(`${API_URL}/accounts/${accountNumber}/balance`);
+            const response = await fetch(`${API_URL}/accounts/${accountNumber}/balance`, { headers: await getAuthHeaders(), });
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);
@@ -85,7 +85,7 @@ const api = {
 
     transferAmountHistory: async () => {
         try {
-            const response = await fetch(`${API_URL}/ledger/history`);
+            const response = await fetch(`${API_URL}/ledger/history`, { headers: await getAuthHeaders(), });
 
             if (!response.ok) {
                 throw new Error('Failed to fetch transfer history');
@@ -97,12 +97,10 @@ const api = {
         }
     },
 
-
-
     // Get transaction history
     getTransactions: async (accountNumber) => {
         try {
-            const response = await fetch(`${API_URL}/account/${accountNumber}/transactions`);
+            const response = await fetch(`${API_URL}/account/${accountNumber}/transactions`, { headers: await getAuthHeaders(), });
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);
@@ -151,6 +149,7 @@ const api = {
     deleteProduct: async (id) => {
         try {
             const res = await fetch(`${API_URL}/products/${id}`, {
+                headers: await getAuthHeaders(),
                 method: 'DELETE',
             });
 
@@ -194,7 +193,12 @@ const api = {
 
             return await res.json();
         } catch (err) {
-            throw new Error(err.message);
+            // throw new Error(err.message);
+            console.log('Create client error:', err.message);
+            Alert.alert(
+                'Failed to create client',
+                err.message || 'Something went wrong'
+            );
         }
     },
 
@@ -220,6 +224,7 @@ const api = {
     deleteClient: async (id) => {
         try {
             const res = await fetch(`${API_URL}/clients/${id}`, {
+                headers: await getAuthHeaders(),
                 method: 'DELETE',
             });
 
@@ -236,7 +241,7 @@ const api = {
 
     getAllClients: async () => {
         try {
-            const response = await fetch(`${API_URL}/clients`);
+            const response = await fetch(`${API_URL}/clients`, { headers: await getAuthHeaders(), });
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);
@@ -250,7 +255,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/purchase`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(purchaseData),
             });
 
@@ -269,7 +274,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/purchase/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(purchaseData),
             });
 
@@ -287,6 +292,7 @@ const api = {
     deletePurchase: async (id) => {
         try {
             const res = await fetch(`${API_URL}/purchase/${id}`, {
+                headers: await getAuthHeaders(),
                 method: 'DELETE',
             });
 
@@ -303,7 +309,7 @@ const api = {
 
     getAllPurchases: async () => {
         try {
-            const response = await fetch(`${API_URL}/purchase`);
+            const response = await fetch(`${API_URL}/purchase`, { headers: await getAuthHeaders(), });
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);
@@ -317,7 +323,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/sales`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(saleData),
             });
 
@@ -336,7 +342,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/sales/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(saleData),
             });
 
@@ -354,6 +360,7 @@ const api = {
     deleteSales: async (id) => {
         try {
             const res = await fetch(`${API_URL}/sales/${id}`, {
+                headers: await getAuthHeaders(),
                 method: 'DELETE',
             });
 
@@ -370,7 +377,9 @@ const api = {
 
     getAllSales: async () => {
         try {
-            const response = await fetch(`${API_URL}/sales`);
+            const response = await fetch(`${API_URL}/sales`, {
+                headers: await getAuthHeaders(),
+            });
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);
@@ -379,7 +388,9 @@ const api = {
 
     getAllAccounts: async () => {
         try {
-            const response = await fetch(`${API_URL}/account`);
+            const response = await fetch(`${API_URL}/account`, {
+                headers: await getAuthHeaders(),
+            });
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);
@@ -390,7 +401,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/account/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify(accountData),
             });
 
@@ -408,6 +419,7 @@ const api = {
     deleteAccount: async (id) => {
         try {
             const res = await fetch(`${API_URL}/account/${id}`, {
+                headers: await getAuthHeaders(),
                 method: 'DELETE',
             });
 
@@ -424,7 +436,9 @@ const api = {
 
     getClientLedger: async (id) => {
         try {
-            const response = await fetch(`${API_URL}/ledger/client/${id}`);
+            const response = await fetch(`${API_URL}/ledger/client/${id}`, {
+                headers: await getAuthHeaders(),
+            });
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);
@@ -434,6 +448,7 @@ const api = {
     deleteLedgerEntry: async (id) => {
         try {
             const res = await fetch(`${API_URL}/ledger/${id}`, {
+                headers: await getAuthHeaders(),
                 method: 'DELETE',
             });
 
@@ -452,7 +467,7 @@ const api = {
         try {
             const res = await fetch(`${API_URL}/ledger/bulk`, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify({ ids }),
             });
 
@@ -477,7 +492,7 @@ const api = {
                 `${API_URL}/analytics${query ? `?${query}` : ''}`,
                 {
                     method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: await getAuthHeaders(),
                 },
             );
 
@@ -533,7 +548,9 @@ const api = {
 
     openSalesExcel: async () => {
         try {
-            await Linking.openURL(`${API_URL}/sales/excel`);
+            await Linking.openURL(`${API_URL}/sales/excel`, {
+                headers: await getAuthHeaders(),
+            });
         } catch (e) {
             Alert.alert('Error', 'Unable to download Excel');
         }
@@ -541,7 +558,9 @@ const api = {
 
     getPendingCollections: async () => {
         try {
-            const response = await fetch(`${API_URL}/reports/pendingCollection`);
+            const response = await fetch(`${API_URL}/reports/pendingCollection`, {
+                headers: await getAuthHeaders(),
+            });
             return await response.json();
         } catch (error) {
             Alert.alert('Error', 'Unable to load data');
@@ -551,7 +570,7 @@ const api = {
 
     getPendingPayments: async () => {
         try {
-            const response = await fetch(`${API_URL}/reports/pendingPayment`);
+            const response = await fetch(`${API_URL}/reports/pendingPayment`, { headers: await getAuthHeaders(), });
             return await response.json();
         } catch (error) {
             Alert.alert('Error', 'Unable to load data');

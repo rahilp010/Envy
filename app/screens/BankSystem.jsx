@@ -1,5 +1,4 @@
-/* eslint-disable react-native/no-inline-styles */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,39 +6,42 @@ import {
   TouchableOpacity,
   Animated,
   Modal,
-  Pressable,
+  ScrollView,
+  StatusBar,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
 import AnimatedCounter from '../utility/AnimatedCounter';
 import api from '../services/api';
 import Loading from '../animation/Loading';
-
-/* ===================== COLOR PALETTE ===================== */
-
-const COLORS = {
-  bg: '#FAFBFC',
-  card: '#FFFFFF',
-  primary: '#6C7CFF',
-  primarySoft: '#dee2f9ff',
-  accent: '#FFB703',
-  success: '#2EC4B6',
-  textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  divider: '#E5E7EB',
-  glass: 'rgba(255,255,255,0.7)',
-};
-
-/* ===================== SCREEN ===================== */
+import { useTheme } from '../theme/ThemeContext';
+import { DarkTheme, LightTheme } from '../theme/color';
 
 export default function BankSystem({ navigation }) {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
+
+  // Animation Refs
+  const translateAnim = useRef(new Animated.Value(12)).current;
+  const balanceOpacity = useRef(new Animated.Value(1)).current;
+
+  // State
   const [activeAccount, setActiveAccount] = useState('BANK ACCOUNT');
   const [showBalance, setShowBalance] = useState(true);
-  const [animatedBalance] = useState(new Animated.Value(1));
   const [account, setAccount] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Initial Load Animation
+  useEffect(() => {
+    Animated.spring(translateAnim, {
+      toValue: 0,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+    fetchAccount();
+  }, []);
 
   const fetchAccount = async () => {
     try {
@@ -53,44 +55,34 @@ export default function BankSystem({ navigation }) {
     }
   };
 
-  useEffect(() => {
-    fetchAccount();
-  }, []);
-
-  const currentAccount = account.find(
+  const safeArray = v => (Array.isArray(v) ? v : []);
+  const currentAccount = safeArray(account).find(
     acc => acc?.clientId?.clientName === activeAccount,
   );
-
-  console.log(currentAccount);
-
   const currentBalance = currentAccount?.openingBalance || 0;
 
-  const animateBalanceChange = useCallback(() => {
-    animatedBalance.setValue(0.85);
-    Animated.spring(animatedBalance, {
-      toValue: 1,
-      friction: 6,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
   const toggleEye = () => {
-    Animated.timing(animatedBalance, {
-      toValue: showBalance ? 0.9 : 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowBalance(prev => !prev);
-    });
-  };
+    Animated.sequence([
+      Animated.timing(balanceOpacity, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(balanceOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-  const switchAccount = type => {
-    setActiveAccount(type);
-    animateBalanceChange();
+    setTimeout(() => setShowBalance(prev => !prev), 100);
   };
 
   return (
     <View style={styles.container}>
+      <StatusBar
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+      />
       <Navbar title="Bank" page="bank" />
 
       {loading && (
@@ -103,82 +95,64 @@ export default function BankSystem({ navigation }) {
         </Modal>
       )}
 
-      <View style={styles.screen}>
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        style={{ transform: [{ translateY: translateAnim }] }}
+      >
         {/* ===================== BALANCE CARD ===================== */}
+        <View style={styles.mainCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.balanceLabel}>Total Balance</Text>
+            <TouchableOpacity
+              onPress={toggleEye}
+              style={styles.eyeBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name={showBalance ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+                color={COLORS.muted}
+              />
+            </TouchableOpacity>
+          </View>
 
-        <LinearGradient
-          colors={[COLORS.primarySoft, COLORS.bg]}
-          style={styles.mainCard}
-        >
-          <Text style={styles.balanceLabel}>Total Balance</Text>
-
-          <Animated.View
-            style={{
-              // transform: [{ scale: animatedBalance }],
-              opacity: animatedBalance,
-            }}
-          >
+          <Animated.View style={{ opacity: balanceOpacity }}>
             {showBalance ? (
               <AnimatedCounter
                 value={currentBalance}
                 style={styles.balanceAmount}
               />
             ) : (
-              <Text style={styles.balanceAmount}>* * * * * * *</Text>
+              <Text style={styles.balanceAmount}>••••••••</Text>
             )}
           </Animated.View>
 
-          <TouchableOpacity onPress={toggleEye} style={styles.eyeBtn}>
-            <Ionicons
-              name={showBalance ? 'eye-outline' : 'eye-off-outline'}
-              size={18}
-              color={COLORS.textSecondary}
+          {/* TABS (Pills) */}
+          <View style={styles.tabContainer}>
+            <TabPill
+              label="Bank"
+              isActive={activeAccount === 'BANK ACCOUNT'}
+              onPress={() => setActiveAccount('BANK ACCOUNT')}
             />
-          </TouchableOpacity>
-
-          {/* CARD TYPE SWITCH */}
-          <View style={styles.cardIconRow}>
-            <TouchableOpacity onPress={() => switchAccount('BANK ACCOUNT')}>
-              {/* <CardIcon icon="card-outline" active={activeAccount === 'Bank'} /> */}
-              <Text
-                style={[
-                  styles.cardIconText,
-                  activeAccount === 'BANK ACCOUNT' && styles.cardIconTextActive,
-                ]}
-              >
-                Bank
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => switchAccount('CASH ACCOUNT')}>
-              {/* <CardIcon
-                icon="wallet-outline"
-                active={activeAccount === 'Cash'} 
-              />*/}
-              <Text
-                style={[
-                  styles.cardIconText,
-                  activeAccount === 'CASH ACCOUNT' && styles.cardIconTextActive,
-                ]}
-              >
-                Cash
-              </Text>
-            </TouchableOpacity>
-
-            {/* <CardIcon icon="add-outline" /> */}
+            <TabPill
+              label="Cash"
+              isActive={activeAccount === 'CASH ACCOUNT'}
+              onPress={() => setActiveAccount('CASH ACCOUNT')}
+            />
           </View>
 
-          {/* QUICK ACTIONS */}
-          <View style={styles.actionsRow}>
-            <Action icon="add" label="Add" />
-            <Action icon="arrow-up" label="Withdraw" />
-            <Action
-              icon="swap-horizontal-outline"
+          {/* QUICK ACTIONS ROW */}
+          <View style={styles.actionRow}>
+            <ActionBtn icon="add" label="Add" />
+            <ActionBtn icon="arrow-up" label="Withdraw" />
+            <ActionBtn
+              icon="swap-horizontal"
               label="Transfer"
               onPress={() => navigation.navigate('Transfer')}
             />
-            <Action
-              icon="unlink-outline"
+            <ActionBtn
+              icon="document-text-outline"
               label="Ledger"
               onPress={() =>
                 navigation.navigate('LedgerClientList', {
@@ -187,267 +161,283 @@ export default function BankSystem({ navigation }) {
               }
             />
           </View>
-        </LinearGradient>
+        </View>
 
-        {/* ===================== OTHER SERVICES ===================== */}
+        {/* ===================== SERVICES GRID ===================== */}
+        <Text style={styles.sectionTitle}>Services</Text>
 
-        <Text style={styles.sectionTitle}>Other Services</Text>
-
-        <View style={styles.serviceGrid}>
+        <View style={styles.gridContainer}>
           <ServiceCard
-            icon="person-outline"
+            icon="wallet-outline"
             label="Accounts"
             onPress={() => navigation.navigate('Account')}
           />
           <ServiceCard
-            icon="analytics-outline"
+            icon="bar-chart-outline"
             label="Analytics"
             onPress={() => navigation.navigate('Analytics')}
           />
-          <ServiceWide
-            icon="unlink-outline"
-            label="Client Ledger"
+          <ServiceCard
+            icon="people-outline"
+            label="Clients"
             onPress={() => navigation.navigate('LedgerClientList')}
           />
+          {/* <ServiceCard
+            icon="receipt-outline"
+            label="Reports"
+            onPress={() => {}}
+          /> */}
         </View>
 
-        {/* ===================== TRANSACTION ===================== */}
-      </View>
+        {/* ===================== SPACER ===================== */}
+        <View style={{ height: 100 }} />
+      </Animated.ScrollView>
 
       <BottomNav navigation={navigation} active="bank" />
     </View>
   );
 }
 
-/* ===================== COMPONENTS ===================== */
+/* ===================== SUB-COMPONENTS ===================== */
 
-const Action = ({ icon, label, onPress }) => (
-  <Pressable style={styles.action} onPress={onPress}>
-    <View style={styles.actionIcon}>
-      <Ionicons name={icon} size={18} />
-    </View>
-    <Text style={styles.actionLabel}>{label}</Text>
-  </Pressable>
-);
+const TabPill = ({ label, isActive, onPress }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
 
-const ServiceCard = ({ icon, label, onPress }) => (
-  <TouchableOpacity style={styles.serviceCard} onPress={onPress}>
-    <Ionicons name={icon} size={20} />
-    <Text style={styles.serviceLabel}>{label}</Text>
-  </TouchableOpacity>
-);
+  return (
+    <TouchableOpacity
+      style={[styles.pill, isActive && styles.pillActive]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
-const ServiceWide = ({ icon, label, onPress }) => (
-  <TouchableOpacity style={styles.serviceWide} onPress={onPress}>
-    <Ionicons name={icon} size={20} />
-    <Text style={styles.serviceWideLabel}>{label}</Text>
-  </TouchableOpacity>
-);
+const ActionBtn = ({ icon, label, onPress }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const pressIn = () =>
+    Animated.spring(scale, { toValue: 0.9, useNativeDriver: true }).start();
+  const pressOut = () =>
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 3,
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
+      <TouchableOpacity
+        style={styles.actionCircle}
+        onPress={onPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+      >
+        <Ionicons name={icon} size={22} color={COLORS.text} />
+      </TouchableOpacity>
+      <Text style={styles.actionLabel}>{label}</Text>
+    </Animated.View>
+  );
+};
+
+const ServiceCard = ({ icon, label, onPress }) => {
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const pressIn = () =>
+    Animated.spring(scale, { toValue: 0.95, useNativeDriver: true }).start();
+  const pressOut = () =>
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 3,
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Animated.View
+      style={{ transform: [{ scale }], width: '48%', marginBottom: 16 }}
+    >
+      <TouchableOpacity
+        style={styles.serviceCard}
+        onPress={onPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        activeOpacity={0.9}
+      >
+        <View style={styles.serviceIconBox}>
+          <Ionicons name={icon} size={24} color={COLORS.text} />
+        </View>
+        <Text style={styles.serviceText}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 /* ===================== STYLES ===================== */
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  screen: { padding: 16 },
+const createStyles = COLORS =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.bg,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 10,
+    },
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  mainCard: {
-    borderRadius: 28,
-    padding: 20,
-    elevation: 2,
-    marginTop: -10,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-  },
+    // === Main Card ===
+    mainCard: {
+      backgroundColor: COLORS.card,
+      borderRadius: 28,
+      padding: 24,
+      marginBottom: 24,
+      // Soft Shadow (Matches Settings/Profile)
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.05,
+      shadowRadius: 15,
+      elevation: 3,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'center', // Centered alignment
+      alignItems: 'center',
+      marginBottom: 8,
+      position: 'relative',
+    },
+    balanceLabel: {
+      fontSize: 14,
+      color: COLORS.muted,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    eyeBtn: {
+      position: 'absolute',
+      right: 0,
+      top: -2,
+    },
+    balanceAmount: {
+      fontSize: 36,
+      fontWeight: '800',
+      color: COLORS.text,
+      textAlign: 'center',
+      marginBottom: 24,
+      letterSpacing: -1,
+    },
 
-  balanceLabel: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
+    // === Tabs ===
+    tabContainer: {
+      flexDirection: 'row',
+      backgroundColor: COLORS.bg, // Subtle inner container
+      borderRadius: 20,
+      padding: 4,
+      marginBottom: 24,
+    },
+    pill: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 16,
+    },
+    pillActive: {
+      backgroundColor: COLORS.card, // White on light, dark on dark
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    pillText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: COLORS.muted,
+    },
+    pillTextActive: {
+      color: COLORS.text,
+      fontWeight: '700',
+    },
 
-  balanceAmount: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginTop: 6,
-  },
+    // === Actions ===
+    actionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 8,
+    },
+    actionCircle: {
+      width: 54,
+      height: 54,
+      borderRadius: 18, // Squircle shape like Settings icons
+      backgroundColor: COLORS.bg === '#000000' ? '#222' : '#F5F7FF', // Matches Profile icons
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    actionLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: COLORS.text,
+    },
 
-  eyeBtn: {
-    position: 'absolute',
-    top: 18,
-    right: 18,
-  },
+    // === Section Header ===
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: COLORS.muted,
+      marginBottom: 16,
+      marginLeft: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+    },
 
-  cardIconRow: {
-    flexDirection: 'row',
-    gap: 14,
-    marginTop: 22,
-  },
-
-  cardIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: COLORS.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  cardIconActive: {
-    backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 22,
-  },
-
-  action: { alignItems: 'center' },
-
-  actionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // borderWidth: 1,
-    // borderColor: '#ccc',
-    elevation: 4,
-  },
-
-  actionLabel: {
-    marginTop: 6,
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-
-  sectionTitle: {
-    marginTop: 28,
-    marginBottom: 10,
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-  },
-
-  serviceGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-
-  serviceCard: {
-    width: '48%',
-    height: 72,
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-
-  serviceLabel: {
-    marginTop: 6,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-
-  serviceWide: {
-    width: '100%',
-    height: 72,
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-
-  serviceWideLabel: {
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-
-  transaction: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-
-  transactionLeft: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-
-  transactionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  transactionTitle: {
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-
-  transactionTime: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-  },
-
-  transactionAmount: {
-    fontWeight: '800',
-    color: '#EF4444',
-  },
-
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  loaderBox: {
-    padding: 24,
-    borderRadius: 20,
-  },
-
-  cardIconText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    borderColor: COLORS.textPrimary,
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 6,
-    paddingHorizontal: 14,
-  },
-
-  cardIconTextActive: {
-    color: COLORS.primary,
-    borderColor: COLORS.primary,
-    borderWidth: 1.5,
-  },
-});
+    // === Grid ===
+    gridContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    serviceCard: {
+      backgroundColor: COLORS.card,
+      borderRadius: 24,
+      padding: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      // Soft shadow
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.03,
+      shadowRadius: 10,
+      elevation: 2,
+    },
+    serviceIconBox: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: COLORS.bg === '#000000' ? '#222' : '#F5F7FF',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    serviceText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: COLORS.text,
+    },
+  });

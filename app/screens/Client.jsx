@@ -110,6 +110,8 @@ const Client = ({ navigation }) => {
   const [csvModalVisible, setCsvModalVisible] = useState(false);
   const [csvText, setCsvText] = useState('');
 
+  const safeArray = v => (Array.isArray(v) ? v : []);
+
   useEffect(() => {
     slideAnim.setValue(200);
   }, []);
@@ -258,12 +260,12 @@ const Client = ({ navigation }) => {
       phoneNo: Number(phoneNo),
       gstNo: gstNo,
       address: address.trim(),
-      pendingAmount: Number(pendingAmount),
-      paidAmount: Number(paidAmount),
-      pendingFromOurs: Number(pendingFromOurs),
-      accountType: accountType.trim(),
+      pendingAmount: Number(pendingAmount) || 0,
+      paidAmount: Number(paidAmount) || 0,
+      pendingFromOurs: Number(pendingFromOurs) || 0,
+      accountType: accountType.trim() || 'Debtor',
       isEmployee,
-      salary: Number(salary),
+      salary: Number(salary) || 0,
     };
 
     if (editingClient) {
@@ -273,9 +275,10 @@ const Client = ({ navigation }) => {
 
         const updated = res.client;
 
-        setClients(prev =>
-          prev.map(c => (c._id === updated._id ? updated : c)),
-        );
+        setClients(prev => {
+          const safePrev = Array.isArray(prev) ? prev : [];
+          return safePrev.map(c => (c._id === updated._id ? updated : c));
+        });
 
         saveClientsToCache(clients);
 
@@ -290,8 +293,13 @@ const Client = ({ navigation }) => {
         setLoading(true);
         const res = await api.createClient(clientData);
 
+        if (!res || !res.client) {
+          throw new Error('Invalid response from server');
+        }
+
         setClients(prev => {
-          const updated = [res.client, ...prev];
+          const safePrev = Array.isArray(prev) ? prev : [];
+          const updated = [res.client, ...safePrev];
           saveClientsToCache(updated);
           return updated;
         });
@@ -299,6 +307,7 @@ const Client = ({ navigation }) => {
         handleReset();
       } catch (err) {
         console.log('Update error:', err.message);
+        Alert.alert('Create failed', err.message);
       } finally {
         setLoading(false);
       }
@@ -354,7 +363,7 @@ const Client = ({ navigation }) => {
       setRefreshing(true);
       setLoading(true);
       const res = await api.getAllClients();
-      setClients(res);
+      setClients(safeArray(res));
 
       await saveClientsToCache(res);
     } catch (err) {

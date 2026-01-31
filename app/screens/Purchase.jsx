@@ -161,6 +161,8 @@ const Purchase = ({ navigation }) => {
   const [showPaymentMethod, setShowPaymentMethod] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
 
+  const normalizeArray = data => (Array.isArray(data) ? data : []);
+
   useEffect(() => {
     slideAnim.setValue(200);
   }, []);
@@ -568,9 +570,9 @@ const Purchase = ({ navigation }) => {
           api.getAllClients(),
           api.getAllProducts(),
         ]).then(([purchaseRes, clientRes, productRes]) => {
-          setPurchases(purchaseRes.purchases || purchaseRes);
-          setClients(clientRes.clients || clientRes);
-          setProducts(productRes.products || productRes);
+          setPurchases(normalizeArray(purchaseRes.purchases || purchaseRes));
+          setClients(normalizeArray(clientRes.clients || clientRes));
+          setProducts(normalizeArray(productRes.products || productRes));
         });
       } catch (err) {
         console.log('Init load error:', err.message);

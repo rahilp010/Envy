@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Animated,
   Switch,
-  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Navbar from '../components/Navbar';
@@ -15,27 +14,17 @@ import { useTheme } from '../theme/ThemeContext';
 import { LightTheme, DarkTheme } from '../theme/color';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// const COLORS = {
-//   bg: '#FAFBFC',
-//   card: '#FFFFFF',
-//   text: '#111827',
-//   muted: '#6B7280',
-//   border: '#E5E7EB',
-//   primary: '#111827',
-//   accentBlue: '#EFF6FF',
-//   accentGreen: '#E6F7E9',
-//   accentRed: '#FCE8E6',
-// };
-
 const Settings = ({ navigation }) => {
   const { theme, toggleTheme } = useTheme();
   const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
-  const translateAnim = useRef(new Animated.Value(12)).current;
   const styles = createStyles(COLORS);
+  const translateAnim = useRef(new Animated.Value(12)).current;
 
+  // State
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(false);
 
+  // Animation on Mount
   useEffect(() => {
     Animated.spring(translateAnim, {
       toValue: 0,
@@ -44,12 +33,12 @@ const Settings = ({ navigation }) => {
     }).start();
   }, []);
 
+  // Load Preferences
   useEffect(() => {
     const loadBiometricSetting = async () => {
       const saved = await AsyncStorage.getItem('biometricEnabled');
       setBiometric(saved === 'true');
     };
-
     loadBiometricSetting();
   }, []);
 
@@ -59,150 +48,146 @@ const Settings = ({ navigation }) => {
   };
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          transform: [{ translateY: translateAnim }],
-        },
-      ]}
-    >
+    <View style={styles.container}>
       <Navbar title="Settings" page="settings" />
 
-      <View style={styles.safe}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
-        >
-          {/* HEADER */}
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent]}
+        style={{ transform: [{ translateY: translateAnim }] }}
+      >
+        {/* SECTION: ACCOUNT */}
+        <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.sectionContainer}>
+          <SettingsRow
+            icon="person-outline"
+            label="About"
+            onPress={() => navigation.navigate('About')}
+          />
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Configurations"
+            isLast
+          />
+        </View>
 
-          {/* ACCOUNT */}
-          <Section title="Account">
-            <Row
-              icon="person-outline"
-              label="About"
-              onPress={() => navigation.navigate('About')}
-            />
-            <Row
-              icon="shield-checkmark-outline"
-              label="Configurations"
-              isLast
-            />
-          </Section>
+        {/* SECTION: PREFERENCES */}
+        <Text style={styles.sectionTitle}>Preferences</Text>
+        <View style={styles.sectionContainer}>
+          <SettingsRow
+            icon="moon-outline"
+            label="Dark Mode"
+            type="toggle"
+            value={theme === 'dark'}
+            onToggle={toggleTheme}
+          />
+          <SettingsRow
+            icon="notifications-outline"
+            label="Notifications"
+            type="toggle"
+            value={notifications}
+            onToggle={setNotifications}
+          />
+          <SettingsRow
+            icon="finger-print-outline"
+            label="Biometric Lock"
+            type="toggle"
+            value={biometric}
+            onToggle={toggleBiometric}
+            isLast
+          />
+        </View>
 
-          {/* PREFERENCES */}
-          <Section title="Preferences">
-            <ToggleRow
-              icon="moon-outline"
-              label="Dark Mode"
-              value={theme === 'dark'}
-              onChange={toggleTheme}
-            />
-            <ToggleRow
-              icon="notifications-outline"
-              label="Notifications"
-              value={notifications}
-              onChange={setNotifications}
-            />
-            <ToggleRow
-              icon="finger-print-outline"
-              label="Biometric Lock"
-              value={biometric}
-              onChange={toggleBiometric}
-              isLast
-            />
-          </Section>
+        {/* SECTION: SYSTEM */}
+        <Text style={styles.sectionTitle}>System</Text>
+        <View style={styles.sectionContainer}>
+          <SettingsRow icon="cloud-outline" label="Backup & Sync" />
+          <SettingsRow icon="refresh-outline" label="Check For Update" isLast />
+        </View>
 
-          {/* SYSTEM */}
-          <Section title="System">
-            <Row icon="cloud-outline" label="Backup & Sync" />
-            <Row icon="refresh-outline" label="Check For Update" isLast />
-          </Section>
-
-          {/* DANGER ZONE */}
-          <Section title="Danger Zone">
-            <Row icon="log-out-outline" label="Logout" danger isLast />
-          </Section>
-        </ScrollView>
-      </View>
+        {/* Spacer for BottomNav */}
+        <View style={{ height: 100 }} />
+      </Animated.ScrollView>
 
       <BottomNav navigation={navigation} active="settings" />
-    </Animated.View>
-  );
-};
-
-/* ---------------- COMPONENTS ---------------- */
-
-const Section = ({ title, children }) => {
-  const { theme } = useTheme();
-  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
-  const styles = createStyles(COLORS);
-  return (
-    <View style={{ marginBottom: 28 }}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.card}>{children}</View>
     </View>
   );
 };
 
-const Row = ({ icon, label, danger, isLast, onPress }) => {
+/* ---------------- REUSABLE COMPONENT ---------------- */
+
+const SettingsRow = ({
+  icon,
+  label,
+  isLast,
+  type = 'arrow',
+  value,
+  onToggle,
+  onPress,
+  isDestructive,
+}) => {
   const { theme } = useTheme();
   const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
   const styles = createStyles(COLORS);
-  const scale = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const pressIn = () =>
-    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true }).start();
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+    }).start();
+  };
 
-  const pressOut = () =>
-    Animated.spring(scale, {
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
       toValue: 1,
       friction: 3,
       useNativeDriver: true,
     }).start();
+  };
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <TouchableOpacity
         style={[styles.row, isLast && styles.lastRow]}
-        onPressIn={pressIn}
-        onPressOut={pressOut}
+        onPress={type === 'toggle' ? () => onToggle(!value) : onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         activeOpacity={0.9}
-        onPress={onPress}
+        disabled={type === 'toggle'}
       >
-        <View style={[styles.iconBox, danger && styles.dangerIcon]}>
-          <Icon
-            name={icon}
-            size={20}
-            color={danger ? '#DC2626' : COLORS.icon}
-          />
+        <View style={styles.rowLeft}>
+          <View
+            style={[styles.iconBox, isDestructive && styles.iconBoxDestructive]}
+          >
+            <Icon
+              name={icon}
+              size={22}
+              color={isDestructive ? '#FF3B30' : COLORS.text}
+            />
+          </View>
+          <Text
+            style={[styles.rowLabel, isDestructive && styles.textDestructive]}
+          >
+            {label}
+          </Text>
         </View>
-        <Text style={[styles.rowLabel, danger && styles.dangerText]}>
-          {label}
-        </Text>
-        <Icon name="chevron-forward" size={18} color={COLORS.muted} />
+
+        <View style={styles.rowRight}>
+          {type === 'toggle' ? (
+            <Switch
+              trackColor={{ false: '#E5E7EB', true: COLORS.primary }}
+              thumbColor={'#fff'}
+              ios_backgroundColor="#E5E7EB"
+              onValueChange={onToggle}
+              value={value}
+            />
+          ) : (
+            <Icon name="chevron-forward" size={20} color={COLORS.muted} />
+          )}
+        </View>
       </TouchableOpacity>
     </Animated.View>
-  );
-};
-
-const ToggleRow = ({ icon, label, value, onChange, isLast }) => {
-  const { theme } = useTheme();
-  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
-  const styles = createStyles(COLORS);
-  return (
-    <View style={[styles.row, isLast && styles.lastRow]}>
-      <View style={styles.iconBox}>
-        <Icon name={icon} size={20} color={COLORS.icon} />
-      </View>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        thumbColor={value ? COLORS.toggle : '#9CA3AF'}
-        trackColor={{ false: '#E5E7EB', true: '#D1D5DB' }}
-      />
-    </View>
   );
 };
 
@@ -216,73 +201,77 @@ const createStyles = COLORS =>
       flex: 1,
       backgroundColor: COLORS.bg,
     },
-    safe: {
-      marginBottom: 160,
-    },
-    title: {
-      fontSize: 32,
-      fontWeight: '800',
-      color: COLORS.text,
-      marginBottom: 4,
-    },
-    subtitle: {
-      fontSize: 14,
-      color: COLORS.muted,
-      marginBottom: 28,
+    scrollContent: {
+      paddingHorizontal: 24,
+      paddingTop: 16,
     },
     sectionTitle: {
       fontSize: 14,
       fontWeight: '700',
       color: COLORS.muted,
-      marginBottom: 10,
-      marginLeft: 4,
+      marginBottom: 12,
+      marginTop: 8,
+      marginLeft: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
     },
-    card: {
+    sectionContainer: {
       backgroundColor: COLORS.card,
-      borderRadius: 22,
-      paddingVertical: 6,
+      borderRadius: 24, // Matches Profile
+      padding: 8,
+      marginBottom: 16,
+      // Soft shadow exactly like Profile/Home
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.05,
-      shadowRadius: 12,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.03,
+      shadowRadius: 10,
+      elevation: 2,
     },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 16,
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      paddingHorizontal: 12,
       borderBottomWidth: 1,
-      borderBottomColor: COLORS.border,
-    },
-    rowLabel: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: '600',
-      color: COLORS.text,
-    },
-    iconBox: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      backgroundColor: COLORS.glass,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 14,
-    },
-    dangerIcon: {
-      backgroundColor: COLORS.accentRed,
-    },
-    dangerText: {
-      color: '#DC2626',
-    },
-    version: {
-      textAlign: 'center',
-      color: COLORS.muted,
-      fontSize: 12,
-      marginVertical: 30,
+      borderBottomColor: 'rgba(0,0,0,0.03)',
     },
     lastRow: {
       borderBottomWidth: 0,
+    },
+    rowLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    iconBox: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      backgroundColor: '#F5F7FF', // Subtle Blue/Grey from Profile
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
+    },
+    iconBoxDestructive: {
+      backgroundColor: '#FFF2F2',
+    },
+    rowLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: COLORS.text,
+    },
+    textDestructive: {
+      color: '#FF3B30',
+    },
+    rowRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    versionText: {
+      textAlign: 'center',
+      color: COLORS.muted,
+      fontSize: 12,
+      marginTop: 10,
+      marginBottom: 20,
     },
   });

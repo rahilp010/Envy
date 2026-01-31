@@ -128,38 +128,40 @@ const Product = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const filteredProducts = products?.filter(item => {
-    const searchText = debouncedSearch.toLowerCase();
+  const filteredProducts = (Array.isArray(products) ? products : [])?.filter(
+    item => {
+      const searchText = debouncedSearch.toLowerCase();
 
-    const productNameDb = item?.productName?.toLowerCase() || '';
+      const productNameDb = item?.productName?.toLowerCase() || '';
 
-    const searchMatch = productNameDb.includes(searchText);
+      const searchMatch = productNameDb.includes(searchText);
 
-    if (!searchMatch) return false;
+      if (!searchMatch) return false;
 
-    if (!appliedFilters) return true;
+      if (!appliedFilters) return true;
 
-    if (
-      appliedFilters.productId &&
-      item?.productId?._id !== appliedFilters.clientId
-    ) {
-      return false;
-    }
+      if (
+        appliedFilters.productId &&
+        item?.productId?._id !== appliedFilters.clientId
+      ) {
+        return false;
+      }
 
-    const itemDate = new Date(item.date).setHours(0, 0, 0, 0);
+      const itemDate = new Date(item.date).setHours(0, 0, 0, 0);
 
-    if (appliedFilters.fromDate) {
-      const from = new Date(appliedFilters.fromDate).setHours(0, 0, 0, 0);
-      if (itemDate < from) return false;
-    }
+      if (appliedFilters.fromDate) {
+        const from = new Date(appliedFilters.fromDate).setHours(0, 0, 0, 0);
+        if (itemDate < from) return false;
+      }
 
-    if (appliedFilters.toDate) {
-      const to = new Date(appliedFilters.toDate).setHours(0, 0, 0, 0);
-      if (itemDate > to) return false;
-    }
+      if (appliedFilters.toDate) {
+        const to = new Date(appliedFilters.toDate).setHours(0, 0, 0, 0);
+        if (itemDate > to) return false;
+      }
 
-    return true;
-  });
+      return true;
+    },
+  );
 
   const openFilter = () => {
     setFilterVisible(true);
@@ -895,7 +897,9 @@ const Product = ({ navigation }) => {
                       : pickerType === 'asset'
                       ? assetTypes
                       : pickerType === 'machinePart'
-                      ? products.filter(p => p.type !== 'MACHINE')
+                      ? (Array.isArray(products) ? products : []).filter(
+                          p => p.type !== 'MACHINE',
+                        )
                       : []
                   }
                   keyExtractor={(item, index) =>

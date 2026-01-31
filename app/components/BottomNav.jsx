@@ -22,6 +22,45 @@ const BottomNav = ({ navigation, active }) => {
           />
         </TouchableOpacity>
 
+        {active === 'profile' && (
+          <TouchableOpacity
+            style={active === 'analytics' ? styles.active : styles.item}
+            onPress={() => navigation.navigate('Analytics')}
+          >
+            <Icon
+              name="analytics-outline"
+              size={22}
+              color={active === 'analytics' ? COLORS.text : '#fff'}
+            />
+          </TouchableOpacity>
+        )}
+
+        {active === 'profile' && (
+          <TouchableOpacity
+            style={active === 'bank' ? styles.active : styles.item}
+            onPress={() => navigation.navigate('BankSystem')}
+          >
+            <Icon
+              name="business-outline"
+              size={22}
+              color={active === 'bank' ? COLORS.text : '#fff'}
+            />
+          </TouchableOpacity>
+        )}
+
+        {active === 'bank' && (
+          <TouchableOpacity
+            style={active === 'setting' ? styles.active : styles.item}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Icon
+              name="settings-outline"
+              size={22}
+              color={active === 'setting' ? COLORS.text : '#fff'}
+            />
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={
             active === 'product' ||
@@ -32,6 +71,7 @@ const BottomNav = ({ navigation, active }) => {
             active === 'analytics' ||
             active === 'report' ||
             active === 'settings' ||
+            active === 'profile' ||
             active === 'about'
               ? styles.active
               : styles.item
@@ -55,6 +95,8 @@ const BottomNav = ({ navigation, active }) => {
                 ? 'pie-chart-outline'
                 : active === 'settings'
                 ? 'settings-outline'
+                : active === 'profile'
+                ? 'person-outline'
                 : active === 'about'
                 ? 'information-circle-outline'
                 : 'cash-outline'
@@ -69,6 +111,7 @@ const BottomNav = ({ navigation, active }) => {
               active === 'analytics' ||
               active === 'report' ||
               active === 'settings' ||
+              active === 'profile' ||
               active === 'about'
                 ? COLORS.text
                 : '#fff'

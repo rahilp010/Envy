@@ -112,6 +112,10 @@ export default function Auth({ navigation }) {
       }
 
       await AsyncStorage.setItem('token', res.token);
+      await AsyncStorage.setItem('username', res.user.name);
+      console.log('LOGIN TOKEN:', res.token);
+      await AsyncStorage.setItem('token', res.token);
+
       await AsyncStorage.setItem('lastPasswordAuth', Date.now().toString());
       navigation.replace('HomePage');
     } catch (err) {

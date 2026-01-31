@@ -7,9 +7,10 @@ import {
   View,
   Modal,
 } from 'react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
+import AlertBox from '../components/AlertBox';
 
 const ImportCsv = ({
   csvModalVisible,
@@ -22,6 +23,14 @@ const ImportCsv = ({
   const [importing, setImporting] = React.useState(false);
   const [importProgress, setImportProgress] = React.useState(0);
   const [importErrors, setImportErrors] = React.useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalData, setModalData] = useState({
+    title: '',
+    message: '',
+    type: 'info',
+    actionTextSuccess: '',
+    actionTextDecline: '',
+  });
 
   const parseCSV = text => {
     if (!text) return { headers: [], rows: [] };
@@ -167,7 +176,13 @@ const ImportCsv = ({
         }
       }
     } catch (e) {
-      Alert.alert('Import failed', e.message);
+      setModalData({
+        title: 'Import failed',
+        message: e.message,
+        type: 'error',
+        actionTextSuccess: 'OK',
+      });
+      setModalVisible(true);
     } finally {
       setImporting(false);
     }
@@ -264,6 +279,16 @@ const ImportCsv = ({
                 </Text>
               </View>
             )}
+
+            <AlertBox
+              visible={modalVisible}
+              title={modalData.title}
+              message={modalData.message}
+              type={modalData.type}
+              actionTextSuccess={modalData.actionTextSuccess}
+              actionTextDecline={modalData.actionTextDecline}
+              onClose={() => setModalVisible(false)}
+            />
 
             {/* ===== ERRORS ===== */}
             {!!importErrors.length && (

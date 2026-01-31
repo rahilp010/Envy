@@ -21,7 +21,8 @@ import About from './app/components/Settings/About';
 import Login from './app/screens/Login';
 import Signup from './app/screens/Signup';
 import AuthGuard from './app/screens/AuthGuard';
-import Bootstarp from './app/utility/BootStrap';
+import Bootstarp from './app/utility/Bootstrap';
+import ProfileDrawer from './app/components/ProfileDrawer';
 import { ThemeProvider } from './app/theme/ThemeContext';
 
 // const Tab = createBottomTabNavigator();
@@ -63,6 +64,15 @@ function App() {
             }}
             name="Bootstrap"
             component={Bootstarp}
+          />
+          <Stack.Screen
+            options={{
+              headerShown: false,
+              tabBarVisible: false,
+              tabBarStyle: { display: 'none' },
+            }}
+            name="ProfileDrawer"
+            component={ProfileDrawer}
           />
           <Stack.Screen
             options={{

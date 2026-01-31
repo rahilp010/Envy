@@ -19,6 +19,8 @@ export default function AuthGuard({ navigation }) {
     return () => sub.remove();
   }, []);
 
+  console.log('token', AsyncStorage.getItem('token'));
+
   useEffect(() => {
     const back = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => back.remove();

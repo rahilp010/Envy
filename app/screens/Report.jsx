@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   FlatList,
   TouchableOpacity,
   Modal,
-  TextInput,
   Alert,
+  Animated,
+  StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Navbar from '../components/Navbar';
@@ -19,8 +20,15 @@ import GPay from '../../assets/googlepay.svg';
 import Idbi from '../../assets/IDBIBank.svg';
 import Loading from '../animation/Loading';
 import BottomNav from '../components/BottomNav';
+import { useTheme } from '../theme/ThemeContext';
+import { DarkTheme, LightTheme } from '../theme/color';
 
 const Report = ({ navigation, route }) => {
+  /* ===================== THEME ===================== */
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
+
   /* ===================== STATE ===================== */
   const { client } = route?.params || 0;
   const [type, setType] = useState('collection'); // collection | payment
@@ -33,6 +41,17 @@ const Report = ({ navigation, route }) => {
 
   const [loading, setLoading] = useState(false);
 
+  // Animation for entering the screen
+  const translateAnim = useRef(new Animated.Value(10)).current;
+
+  useEffect(() => {
+    Animated.spring(translateAnim, {
+      toValue: 0,
+      friction: 6,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
   /* ===================== LOAD DATA ===================== */
   const loadData = async () => {
     try {
@@ -42,9 +61,7 @@ const Report = ({ navigation, route }) => {
           ? await api.getPendingCollections()
           : await api.getPendingPayments();
 
-      // backend gives { totalPending, count, list }
       const list = res?.list || [];
-
       setData(list);
 
       setSummary({
@@ -71,12 +88,29 @@ const Report = ({ navigation, route }) => {
     loadData();
   }, [type]);
 
-  console.log('Data', data);
+  /* ===================== RENDER HELPERS ===================== */
 
-  /* ===================== RENDER ===================== */
+  const KPI = ({ label, value, color }) => (
+    <View style={styles.kpi}>
+      <Text style={[styles.kpiValue, { color: color || COLORS.text }]}>
+        ₹ {value.toLocaleString('en-IN')}
+      </Text>
+      <Text style={styles.kpiLabel}>{label}</Text>
+    </View>
+  );
+
+  const ExportBtn = ({ label }) => (
+    <TouchableOpacity style={styles.exportBtn} activeOpacity={0.7}>
+      <Icon name="download-outline" size={16} color={COLORS.text} />
+      <Text style={styles.exportText}>{label}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      {/* ================= HEADER ================= */}
+      <StatusBar
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+      />
       <Navbar title="Reports" page="report" />
 
       {loading && (
@@ -89,44 +123,67 @@ const Report = ({ navigation, route }) => {
         </Modal>
       )}
 
-      <View style={styles.safe}>
+      <Animated.View
+        style={[styles.safe, { transform: [{ translateY: translateAnim }] }]}
+      >
         {/* ================= TABS ================= */}
-        <View style={styles.segment}>
-          {['collection', 'payment'].map(t => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.segmentBtn, type === t && styles.segmentActive]}
-              onPress={() => setType(t)}
+        <View style={styles.segmentContainer}>
+          <TouchableOpacity
+            style={[
+              styles.segmentBtn,
+              type === 'collection' && styles.segmentActive,
+            ]}
+            onPress={() => setType('collection')}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                type === 'collection' && styles.segmentTextActive,
+              ]}
             >
-              <Text
-                style={[
-                  styles.segmentText,
-                  type === t && styles.segmentTextActive,
-                ]}
-              >
-                {t === 'collection'
-                  ? 'Pending Collections'
-                  : 'Pending Payments'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+              Pending Collections
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.segmentBtn,
+              type === 'payment' && styles.segmentActive,
+            ]}
+            onPress={() => setType('payment')}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                type === 'payment' && styles.segmentTextActive,
+              ]}
+            >
+              Pending Payments
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* ================= STATS ================= */}
         <View style={styles.kpiRow}>
           <KPI
-            label={type === 'collection' ? 'Total Receivable' : 'Total Payable'}
+            label={type === 'collection' ? 'Total To Receive' : 'Total To Pay'}
             value={summary.totalAmount}
-            color={type === 'collection' ? '#16A34A' : '#DC2626'}
+            color={type === 'collection' ? '#10B981' : '#EF4444'}
           />
-          <KPI label="Overdue" value={summary.overdueAmount} color="#DC2626" />
-          {/* <KPI label="Parties" value={summary.totalParties} /> */}
+          <KPI
+            label="Overdue (>30 Days)"
+            value={summary.overdueAmount}
+            color="#EF4444"
+          />
         </View>
 
         {/* ================= EXPORT ================= */}
         <View style={styles.exportRow}>
-          <ExportBtn label="PDF" />
-          <ExportBtn label="Excel" />
+          <Text style={styles.sectionTitle}>{data.length} Transactions</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <ExportBtn label="PDF" />
+            <ExportBtn label="CSV" />
+          </View>
         </View>
 
         {/* ================= LIST ================= */}
@@ -134,296 +191,262 @@ const Report = ({ navigation, route }) => {
           data={data}
           keyExtractor={i => i.id}
           contentContainerStyle={{ paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <View style={styles.card}>
+              {/* Colored Indicator Bar */}
               <View
                 style={[
                   styles.sideBar,
                   {
                     backgroundColor:
-                      type === 'collection' ? '#16A34A' : '#DC2626',
+                      type === 'collection' ? '#10B981' : '#EF4444',
                   },
                 ]}
               />
 
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>
-                  {type === 'collection' ? item.clientName : item.vendorName}
-                </Text>
+              <View style={styles.cardContent}>
+                {/* Header: Name & Date */}
+                <View style={styles.cardRow}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {type === 'collection' ? item.clientName : item.vendorName}
+                  </Text>
+                  <Text style={styles.meta}>
+                    {new Date(item.date).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                  </Text>
+                </View>
 
-                <Text style={styles.meta}>
-                  {new Date(item.date).toLocaleDateString('en-IN', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </Text>
-
-                <View style={styles.cardFooter}>
+                {/* Body: Amount & Actions */}
+                <View style={[styles.cardRow, { marginTop: 6 }]}>
                   <Text
                     style={[
                       styles.amount,
-                      { color: type === 'collection' ? '#16A34A' : '#DC2626' },
+                      { color: type === 'collection' ? '#10B981' : '#EF4444' },
                     ]}
                   >
-                    ₹ {item.pendingAmount}
+                    ₹ {item.pendingAmount.toLocaleString('en-IN')}
                   </Text>
 
                   <View style={styles.actions}>
-                    {/* <IconBtn
-                      icon="create-outline"
-                      onPress={() => openEdit(item)}
-                    />
-                    <IconBtn
-                      icon="trash-outline"
-                      color="#DC2626"
-                      onPress={() => deleteEntry(item)}
-                    /> */}
-                    <View
-                      style={[
-                        styles.statusPill,
-                        { backgroundColor: '#F59E0B' + '20' },
-                      ]}
-                    >
-                      <Text style={[styles.statusText]}>Pending</Text>
-                    </View>
-                    <View style={[styles.paymentMethod]}>
+                    {/* Payment Method Icon */}
+                    <View style={styles.paymentMethod}>
                       {item.paymentMethod === 'Cash' ? (
-                        <Cash width={20} height={22} />
+                        <Cash width={16} height={16} />
                       ) : item.paymentMethod === 'Bank' ? (
-                        <GPay width={18} height={22} />
+                        <GPay width={16} height={16} />
                       ) : (
-                        <Idbi width={22} height={20} />
+                        <Idbi width={18} height={16} />
                       )}
                     </View>
-                    {/* <IconBtn
-                      icon="book-outline"
-                      onPress={() =>
-                        navigation.navigate('Ledger', {
-                          client: item?.clientId,
-                        })
-                      }
-                    /> */}
+
+                    {/* Status Pill */}
+                    <View style={styles.statusPill}>
+                      <Text style={styles.statusText}>Pending</Text>
+                    </View>
                   </View>
                 </View>
               </View>
             </View>
           )}
         />
-      </View>
+      </Animated.View>
 
       <BottomNav navigation={navigation} active="report" />
     </View>
   );
 };
 
-/* ================= COMPONENTS ================= */
-
-const KPI = ({ label, value, color = '#111' }) => (
-  <View style={styles.kpi}>
-    <Text style={[styles.kpiValue, { color }]}>₹ {value}</Text>
-    <Text style={styles.kpiLabel}>{label}</Text>
-  </View>
-);
-
-const ExportBtn = ({ label }) => (
-  <TouchableOpacity style={styles.exportBtn}>
-    <Icon name="download-outline" size={18} />
-    <Text style={{ fontWeight: '700' }}>{label}</Text>
-  </TouchableOpacity>
-);
-
-const IconBtn = ({ icon, onPress, color = '#111' }) => (
-  <TouchableOpacity style={styles.iconBtn} onPress={onPress}>
-    <Icon name={icon} size={18} color={color} />
-  </TouchableOpacity>
-);
-
 export default Report;
 
 /* ================= STYLES ================= */
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFBFC' },
+const createStyles = COLORS =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.bg,
+    },
+    safe: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+    },
 
-  safe: { flex: 1, backgroundColor: '#FAFBFC', paddingHorizontal: 16 },
+    // === Tabs ===
+    segmentContainer: {
+      flexDirection: 'row',
+      backgroundColor: COLORS.card,
+      borderRadius: 30,
+      padding: 3,
+      marginBottom: 10,
+      // Soft shadow
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 4,
+    },
+    segmentBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderRadius: 26,
+    },
+    segmentActive: {
+      borderWidth: 1,
+      borderColor: '#e3e9ffff',
+      backgroundColor: '#F5F7FF', // Slight contrast for active
+    },
+    segmentText: {
+      fontWeight: '600',
+      color: COLORS.muted,
+      fontSize: 14,
+    },
+    segmentTextActive: {
+      color: COLORS.text,
+      fontWeight: '700',
+    },
 
-  title: { fontSize: 22, fontWeight: '800', marginBottom: 12 },
+    // === KPI ===
+    kpiRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 12,
+      marginBottom: 24,
+    },
+    kpi: {
+      flex: 1,
+      backgroundColor: COLORS.card,
+      padding: 16,
+      borderRadius: 24,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.04,
+      shadowRadius: 10,
+      elevation: 2,
+      justifyContent: 'center',
+    },
+    kpiValue: {
+      fontSize: 20,
+      fontWeight: '800',
+      marginBottom: 4,
+    },
+    kpiLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: COLORS.muted,
+      textTransform: 'uppercase',
+    },
 
-  tabRow: { flexDirection: 'row', marginBottom: 16 },
-  tab: {
-    flex: 1,
-    padding: 12,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  activeTab: { backgroundColor: '#111827' },
-  tabText: { textAlign: 'center', fontWeight: '700' },
-  activeTabText: { color: '#fff' },
+    // === Export & Title ===
+    exportRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+      paddingHorizontal: 4,
+    },
+    sectionTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: COLORS.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    exportBtn: {
+      backgroundColor: COLORS.card,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderWidth: 1,
+      borderColor: 'rgba(0,0,0,0.05)',
+    },
+    exportText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: COLORS.text,
+    },
 
-  kpiRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  kpi: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  kpiValue: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  kpiLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 6,
-  },
+    // === Card ===
+    card: {
+      flexDirection: 'row',
+      backgroundColor: COLORS.card,
+      borderRadius: 20,
+      marginBottom: 14,
+      overflow: 'hidden',
+      // Soft shadow
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.03,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    sideBar: {
+      width: 6,
+    },
+    cardContent: {
+      flex: 1,
+      padding: 16,
+    },
+    cardRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    name: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: COLORS.text,
+      flex: 1,
+      marginRight: 10,
+    },
+    meta: {
+      fontSize: 12,
+      color: COLORS.muted,
+      fontWeight: '500',
+    },
+    amount: {
+      fontSize: 18,
+      fontWeight: '800',
+    },
 
-  exportRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginBottom: 14,
-  },
+    // === Action Pills ===
+    actions: {
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'center',
+    },
+    paymentMethod: {
+      width: 28,
+      height: 28,
+      borderRadius: 10,
+      backgroundColor: '#F3F4F6', // Keep light even in dark mode for contrast with icons? Or adapt.
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    statusPill: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+      backgroundColor: 'rgba(245, 158, 11, 0.15)', // Orange tint
+    },
+    statusText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#F59E0B',
+    },
 
-  exportBtn: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    elevation: 4,
-    marginVertical: 10,
-  },
-
-  card: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 14,
-    elevation: 3,
-  },
-  sideBar: {
-    width: 5,
-    borderRadius: 18,
-    marginRight: 12,
-  },
-  cardFooter: {
-    marginTop: 4,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  amount: {
-    fontSize: 20,
-    fontWeight: '900',
-  },
-
-  name: { fontSize: 16, fontWeight: '800' },
-  meta: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-
-  actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  iconBtn: {
-    backgroundColor: '#F3F4F6',
-    padding: 8,
-    borderRadius: 10,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalBox: {
-    width: '85%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 14 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
-  modalRow: { flexDirection: 'row', gap: 12 },
-  cancelBtn: {
-    flex: 1,
-    padding: 14,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveBtn: {
-    flex: 1,
-    padding: 14,
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: '#E5E7EB',
-    borderRadius: 999,
-    padding: 4,
-    marginBottom: 18,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 999,
-    alignItems: 'center',
-  },
-  segmentActive: {
-    backgroundColor: '#111827',
-  },
-  segmentText: {
-    fontWeight: '700',
-    color: '#374151',
-  },
-  segmentTextActive: {
-    color: '#fff',
-  },
-  statusPill: {
-    alignSelf: 'flex-start', // ✅ KEY: fit-content width
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  statusText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-    color: '#F59E0B',
-  },
-  paymentMethod: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    paddingHorizontal: 7,
-    borderRadius: 999,
-    backgroundColor: '#f0f0f0ff',
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)', // 🔥 dim background
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  loaderBox: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 26,
-    paddingVertical: 18,
-    borderRadius: 18,
-  },
-});
+    // === Modal ===
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });

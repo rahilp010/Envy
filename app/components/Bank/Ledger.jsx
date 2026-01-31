@@ -24,7 +24,9 @@ const Ledger = ({ route }) => {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [deleteMode, setDeleteMode] = useState(null); // 'single' | 'multiple'
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
-  
+
+  const safeArray = v => (Array.isArray(v) ? v : []);
+
   useEffect(() => {
     loadLedger();
   }, []);

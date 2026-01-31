@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,30 +7,43 @@ import {
   StatusBar,
   ScrollView,
   Dimensions,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { Animated } from 'react-native';
-import { useRef, useState } from 'react';
-import Report from '../../assets/report.svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Report from '../../assets/report.svg'; // Ensure this path is correct
 import { useTheme } from '../theme/ThemeContext';
 import { DarkTheme, LightTheme } from '../theme/color';
 
 const { width } = Dimensions.get('window');
 
 function HomeScreenContent({ navigation }) {
+  /* ===================== THEME & STYLES ===================== */
   const { theme } = useTheme();
   const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
   const styles = createStyles(COLORS);
   const insets = useSafeAreaInsets();
+
+  /* ===================== ANIMATIONS ===================== */
   const scaleHome = useRef(new Animated.Value(1)).current;
   const scaleProfile = useRef(new Animated.Value(1)).current;
   const fabScale = useRef(new Animated.Value(1)).current;
 
+  /* ===================== STATE ===================== */
+  const [username, setUsername] = useState('');
   const [activeTab, setActiveTab] = useState('home');
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const name = await AsyncStorage.getItem('username');
+      if (name) setUsername(name);
+    };
+    loadUser();
+  }, []);
 
   const animateTab = scaleRef => {
     Animated.sequence([
@@ -57,7 +70,7 @@ function HomeScreenContent({ navigation }) {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor="transparent"
         translucent
       />
@@ -66,16 +79,20 @@ function HomeScreenContent({ navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: 40 + insets.bottom },
+          { paddingBottom: 100 + insets.bottom }, // Extra padding for bottom nav
         ]}
       >
+        {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.menuCircle}>
-            <Icon name="menu-outline" size={34} color="#000" />
+          <TouchableOpacity
+            style={styles.menuCircle}
+            onPress={() => navigation.navigate('ProfileDrawer')} // Or navigation.openDrawer() if using drawer nav
+          >
+            <Icon name="menu-outline" size={32} color={COLORS.text} />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.iconCircle}>
-            <Icon name="notifications-outline" size={24} color="#000" />
+            <Icon name="notifications-outline" size={24} color={COLORS.text} />
             <View style={styles.badge} />
           </TouchableOpacity>
         </View>
@@ -83,7 +100,8 @@ function HomeScreenContent({ navigation }) {
         {/* TITLE */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>
-            Hi Envy,{'\n'}How can I help{'\n'}you today?
+            Hi {username.split(' ')[0] || 'Envy'},{'\n'}How can I help{'\n'}you
+            today?
           </Text>
         </View>
 
@@ -114,7 +132,7 @@ function HomeScreenContent({ navigation }) {
             onPress={() => navigation.navigate('Sales')}
           />
 
-          {/* ✅ FULL WIDTH BANKING CARD */}
+          {/* FULL WIDTH BANKING CARD */}
           <FullWidthCard
             icon="business-outline"
             label="Digital Banking Platform"
@@ -142,7 +160,8 @@ function HomeScreenContent({ navigation }) {
                 <Icon
                   name="home-outline"
                   size={24}
-                  color={activeTab === 'home' ? '#000' : '#fff'}
+                  // Logic: If active, icon is text color (dark/light). If inactive, white.
+                  color={activeTab === 'home' ? COLORS.text : '#fff'}
                 />
               </TouchableOpacity>
             </Animated.View>
@@ -156,7 +175,6 @@ function HomeScreenContent({ navigation }) {
                     : styles.navIcon
                 }
                 onPress={() => {
-                  setActiveTab('profile');
                   animateTab(scaleProfile);
                   navigation.navigate('Settings');
                 }}
@@ -164,7 +182,7 @@ function HomeScreenContent({ navigation }) {
                 <Icon
                   name="settings-outline"
                   size={24}
-                  color={activeTab === 'profile' ? '#000' : '#fff'}
+                  color={activeTab === 'profile' ? COLORS.text : '#fff'}
                 />
               </TouchableOpacity>
             </Animated.View>
@@ -180,7 +198,7 @@ function HomeScreenContent({ navigation }) {
               }}
               activeOpacity={0.9}
             >
-              <Report width={32} height={32} fill="#fff" />
+              <Report width={28} height={28} fill="#fff" />
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -189,19 +207,26 @@ function HomeScreenContent({ navigation }) {
   );
 }
 
-// Reusable Card Component for cleaner code
+// === REUSABLE COMPONENTS (Theme Aware) ===
+
 const Card = ({ icon, label, color, onPress }) => {
   const { theme } = useTheme();
   const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
   const styles = createStyles(COLORS);
+
+  // In Dark Mode: Background is card color, "color" prop used for icon background
+  const bgColor = theme === 'dark' ? COLORS.card : color;
+  const iconBg = theme === 'dark' ? color : 'rgba(255,255,255,0.4)';
+  const iconColor = theme === 'dark' ? '#000' : '#000'; // Keep icon dark for contrast on pastel
+
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: color }]}
+      style={[styles.card, { backgroundColor: bgColor }]}
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <View style={styles.iconWrapper}>
-        <Icon name={icon} size={28} color="#000" />
+      <View style={[styles.iconWrapper, { backgroundColor: iconBg }]}>
+        <Icon name={icon} size={28} color={iconColor} />
       </View>
       <Text style={styles.cardText}>{label}</Text>
     </TouchableOpacity>
@@ -212,14 +237,19 @@ const FullWidthCard = ({ icon, label, color, onPress }) => {
   const { theme } = useTheme();
   const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
   const styles = createStyles(COLORS);
+
+  const bgColor = theme === 'dark' ? COLORS.card : color;
+  const iconBg = theme === 'dark' ? color : 'rgba(255,255,255,0.5)';
+  const iconColor = '#000';
+
   return (
     <TouchableOpacity
-      style={[styles.fullWidthCard, { backgroundColor: color }]}
+      style={[styles.fullWidthCard, { backgroundColor: bgColor }]}
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <View style={styles.fullIconWrapper}>
-        <Icon name={icon} size={25} color="#000" />
+      <View style={[styles.fullIconWrapper, { backgroundColor: iconBg }]}>
+        <Icon name={icon} size={25} color={iconColor} />
       </View>
       <Text style={styles.fullCardText}>{label}</Text>
     </TouchableOpacity>
@@ -233,6 +263,8 @@ export default function HomeScreen({ navigation }) {
     </SafeAreaProvider>
   );
 }
+
+/* ================= STYLES ================= */
 
 const createStyles = COLORS =>
   StyleSheet.create({
@@ -250,10 +282,9 @@ const createStyles = COLORS =>
       marginBottom: 32,
     },
     iconCircle: {
-      backgroundColor: '#fff',
+      backgroundColor: COLORS.card,
       padding: 12,
       borderRadius: 50,
-      // Modern shadow
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.05,
@@ -267,7 +298,7 @@ const createStyles = COLORS =>
       borderRadius: 50,
       position: 'absolute',
       top: 0,
-      left: -16,
+      left: -12,
     },
     badge: {
       width: 10,
@@ -278,7 +309,7 @@ const createStyles = COLORS =>
       right: 12,
       top: 10,
       borderWidth: 1.5,
-      borderColor: '#fff',
+      borderColor: COLORS.card,
     },
     titleSection: {
       marginBottom: 40,
@@ -297,13 +328,12 @@ const createStyles = COLORS =>
       marginBottom: 24,
     },
     card: {
-      width: '48%', // Responsive width
-      aspectRatio: 1.1, // Maintains square-ish shape regardless of screen width
+      width: '48%',
+      aspectRatio: 1.1,
       borderRadius: 24,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 16,
-      // Soft shadow
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: 0.04,
@@ -312,17 +342,16 @@ const createStyles = COLORS =>
     },
     iconWrapper: {
       marginBottom: 12,
-      backgroundColor: 'rgba(255,255,255,0.4)', // Subtle glass effect behind icon
       padding: 8,
       borderRadius: 16,
     },
     cardText: {
       fontWeight: '600',
       fontSize: 16,
-      color: '#1A1A1A',
+      color: COLORS.text,
     },
     fullWidthCard: {
-      width: '100%', // ✅ FULL WIDTH
+      width: '100%',
       height: 110,
       borderRadius: 26,
       flexDirection: 'row',
@@ -335,35 +364,15 @@ const createStyles = COLORS =>
       shadowRadius: 10,
       elevation: 3,
     },
-
     fullIconWrapper: {
-      backgroundColor: 'rgba(255,255,255,0.5)',
       padding: 10,
       borderRadius: 18,
       marginRight: 16,
     },
-
     fullCardText: {
       fontSize: 18,
       fontWeight: '700',
-      color: '#1A1A1A',
-    },
-    fab: {
-      position: 'absolute',
-      right: 24,
-      // bottom is handled dynamically in style prop
-      backgroundColor: COLORS.primary,
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 8,
-      zIndex: 10,
+      color: COLORS.text,
     },
     bottomNavWrapper: {
       position: 'absolute',
@@ -377,22 +386,9 @@ const createStyles = COLORS =>
       justifyContent: 'space-between',
       alignItems: 'center',
     },
-    fabInline: {
-      backgroundColor: COLORS.primary,
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 8,
-    },
     navContent: {
       flexDirection: 'row',
-      backgroundColor: COLORS.primary,
+      backgroundColor: COLORS.primary, // Keeps primary color for nav bar
       borderRadius: 35,
       padding: 6,
       paddingHorizontal: 8,
@@ -409,7 +405,20 @@ const createStyles = COLORS =>
     navIconActive: {
       padding: 14,
       paddingHorizontal: 22,
-      backgroundColor: COLORS.card,
+      backgroundColor: COLORS.card, // Light/Dark card color
       borderRadius: 28,
+    },
+    fabInline: {
+      backgroundColor: COLORS.primary,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
     },
   });

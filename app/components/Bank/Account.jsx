@@ -87,6 +87,8 @@ const Account = ({ navigation }) => {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [pendingResetFunc, setPendingResetFunc] = useState(null);
 
+  const safeArray = v => (Array.isArray(v) ? v : []);
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('blur', () => {
       setAccounts([]); // 🔥 drop local cache
@@ -107,8 +109,6 @@ const Account = ({ navigation }) => {
       setRefreshing(false);
     }
   }, []);
-
-  console.log(accounts);
 
   useEffect(() => {
     loadAccounts();
@@ -234,7 +234,7 @@ const Account = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const filteredAccounts = accounts?.filter(item =>
+  const filteredAccounts = safeArray(accounts)?.filter(item =>
     item.accountName.toLowerCase().includes(debouncedSearch.toLowerCase()),
   );
 
@@ -293,7 +293,7 @@ const Account = ({ navigation }) => {
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Icon name="cube-outline" size={44} color="#9CA3AF" />
+              <Icon name="file-tray-outline" size={44} color="#9CA3AF" />
               <Text style={styles.emptyText}>No Data Found</Text>
             </View>
           }
