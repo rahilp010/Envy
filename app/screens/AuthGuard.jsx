@@ -19,20 +19,22 @@ export default function AuthGuard({ navigation }) {
     return () => sub.remove();
   }, []);
 
-  console.log('token', AsyncStorage.getItem('token'));
-
   useEffect(() => {
     const back = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => back.remove();
   }, []);
 
   const runAuthCheck = async () => {
+    const token = await AsyncStorage.getItem('token');
+
+    if (!token) {
+      return forceLogout();
+    }
     const biometricEnabled =
       (await AsyncStorage.getItem('biometricEnabled')) === 'true';
 
     if (!biometricEnabled) {
-      allowEntry();
-      return;
+      return allowEntry();
     }
 
     const { success, cancelled } = await authenticateWithBiometrics();
@@ -64,10 +66,15 @@ export default function AuthGuard({ navigation }) {
   };
 
   const forceLogout = async () => {
-    await AsyncStorage.removeItem('token');
+    await AsyncStorage.multiRemove([
+      'token',
+      'lastPasswordAuth',
+      'biometricEnabled',
+      'username',
+    ]);
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Login' }],
+      routes: [{ name: 'Dashboard' }],
     });
   };
 

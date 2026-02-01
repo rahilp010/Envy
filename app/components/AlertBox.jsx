@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -71,53 +72,57 @@ export default function AlertBox({
 
   return (
     <Modal transparent visible animationType="none">
-      <View style={styles.overlay}>
-        <Animated.View
-          style={[
-            styles.card,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          {/* ICON WITH PULSE */}
-          <Animated.View
-            style={[
-              styles.iconWrapper,
-              {
-                backgroundColor: icon.bg,
-              },
-            ]}
-          >
-            <Icon name={icon.name} size={42} color={icon.color} />
-          </Animated.View>
-
-          <Text style={styles.title}>{title}</Text>
-          {!!message && <Text style={styles.message}>{message}</Text>}
-
-          {/* ACTION BUTTONS */}
-          <View style={styles.actionButtons}>
-            {!!actionTextDecline && (
-              <TouchableOpacity
-                style={[styles.btn, styles.outlineBtn]}
-                onPress={onClose}
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback>
+            <Animated.View
+              style={[
+                styles.card,
+                {
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
+              {/* ICON WITH PULSE */}
+              <Animated.View
+                style={[
+                  styles.iconWrapper,
+                  {
+                    backgroundColor: icon.bg,
+                  },
+                ]}
               >
-                <Text style={styles.outlineText}>{actionTextDecline}</Text>
-              </TouchableOpacity>
-            )}
+                <Icon name={icon.name} size={42} color={icon.color} />
+              </Animated.View>
 
-            {!!actionTextSuccess && (
-              <TouchableOpacity
-                style={[styles.btn, { backgroundColor: icon.color }]}
-                onPress={onConfirm || onClose}
-              >
-                <Text style={styles.btnText}>{actionTextSuccess}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </Animated.View>
-      </View>
+              <Text style={styles.title}>{title}</Text>
+              {!!message && <Text style={styles.message}>{message}</Text>}
+
+              {/* ACTION BUTTONS */}
+              <View style={styles.actionButtons}>
+                {!!actionTextDecline && (
+                  <TouchableOpacity
+                    style={[styles.btn, styles.outlineBtn]}
+                    onPress={onClose}
+                  >
+                    <Text style={styles.outlineText}>{actionTextDecline}</Text>
+                  </TouchableOpacity>
+                )}
+
+                {!!actionTextSuccess && (
+                  <TouchableOpacity
+                    style={[styles.btn, { backgroundColor: icon.color }]}
+                    onPress={onConfirm || onClose}
+                  >
+                    <Text style={styles.btnText}>{actionTextSuccess}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Animated.View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 }

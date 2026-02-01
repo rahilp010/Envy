@@ -6,8 +6,6 @@ export default function Bootstrap({ navigation }) {
     const init = async () => {
       const token = await AsyncStorage.getItem('token');
 
-      console.log('token', token);
-
       navigation.reset({
         index: 0,
         routes: [{ name: token ? 'AuthGuard' : 'Login' }],

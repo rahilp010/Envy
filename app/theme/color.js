@@ -9,8 +9,10 @@ export const LightTheme = {
     accentGreen: '#E6F7E9',
     accentRed: '#FCE8E6',
     glass: 'rgba(255,255,255,0.7)',
+    transparent: 'rgba(255, 255, 255, 1)',
     toggle: '#ff3f3fff',
-    icon: '#ff3f3fff'
+    icon: '#ff3f3fff',
+    circlePrimary: '#927afeff'
 };
 
 export const DarkTheme = {
@@ -25,5 +27,6 @@ export const DarkTheme = {
     accentRed: '#3F1D1D',
     glass: 'rgba(255,255,255,0.7)',
     toggle: '#ff3f3fff',
-    icon: '#ff3f3fff'
+    icon: '#ff3f3fff',
+    circlePrimary: '#DDD6FE'
 };

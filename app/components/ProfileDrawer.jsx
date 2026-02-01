@@ -144,9 +144,17 @@ export default function ProfileScreen({ navigation }) {
     });
     setModalVisible(true);
 
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem('username');
-    navigation.replace('Login');
+    await AsyncStorage.multiRemove([
+      'token',
+      'lastPasswordAuth',
+      'biometricEnabled',
+      'username',
+    ]);
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
   };
 
   return (

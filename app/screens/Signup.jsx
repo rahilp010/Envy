@@ -8,17 +8,36 @@ import {
   TextInput,
   Animated,
   StatusBar,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import api from '../services/api';
 import AlertBox from '../components/AlertBox';
+import HapticFeedback from 'react-native-haptic-feedback';
+import { useTheme } from '../theme/ThemeContext';
+import { DarkTheme, LightTheme } from '../theme/color';
 
 export default function Signup({ navigation }) {
+  /* ===================== THEME ===================== */
+  const { theme } = useTheme();
+  const COLORS = theme === 'dark' ? DarkTheme : LightTheme;
+  const styles = createStyles(COLORS);
+
+  /* ===================== STATE ===================== */
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Animation Refs
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  // Alerts
   const [modalVisible, setModalVisible] = useState(false);
   const [modalData, setModalData] = useState({
     title: '',
@@ -26,76 +45,91 @@ export default function Signup({ navigation }) {
     type: 'info',
   });
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(40)).current;
-  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const hapticOptions = {
+    enableVibrateFallback: true,
+    ignoreAndroidSystemSettings: false,
+  };
 
+  /* ===================== EFFECTS ===================== */
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 800,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.spring(slideAnim, {
         toValue: 0,
-        duration: 600,
+        friction: 6,
         useNativeDriver: true,
       }),
     ]).start();
   }, []);
 
+  /* ===================== ANIMATION LOGIC ===================== */
   const shake = () => {
     Animated.sequence([
       Animated.timing(shakeAnim, {
         toValue: -10,
-        duration: 60,
+        duration: 50,
         useNativeDriver: true,
       }),
       Animated.timing(shakeAnim, {
         toValue: 10,
-        duration: 60,
+        duration: 50,
         useNativeDriver: true,
       }),
       Animated.timing(shakeAnim, {
-        toValue: -6,
-        duration: 60,
-        useNativeDriver: true,
-      }),
-      Animated.timing(shakeAnim, {
-        toValue: 6,
-        duration: 60,
+        toValue: -10,
+        duration: 50,
         useNativeDriver: true,
       }),
       Animated.timing(shakeAnim, {
         toValue: 0,
-        duration: 60,
+        duration: 50,
         useNativeDriver: true,
       }),
     ]).start();
   };
 
+  /* ===================== VALIDATION ===================== */
   const isNameValid = name.trim().length >= 2;
   const isEmailValid = email.includes('@') && email.includes('.');
   const isPasswordValid = password.length >= 6;
 
+  /* ===================== HANDLERS ===================== */
   const handleSignup = async () => {
     try {
-      await api.signup({
-        name,
-        email,
-        password,
-      });
+      if (!isNameValid || !isEmailValid || !isPasswordValid) {
+        shake();
+        HapticFeedback.trigger('notificationError', hapticOptions);
+        setModalData({
+          title: 'Invalid Credentials',
+          message: 'Please check your credentials',
+          type: 'error',
+        });
+        setModalVisible(true);
+        return;
+      }
 
+      await api.signup({ name, email, password });
+
+      HapticFeedback.trigger('notificationSuccess', hapticOptions);
       setModalData({
-        title: 'Account created successfully',
+        title: 'Account Created',
         message: 'You can now login with your credentials',
         type: 'success',
       });
       setModalVisible(true);
-      navigation.replace('Login'); // back to login
+
+      // Navigate after delay
+      setTimeout(() => {
+        setModalVisible(false);
+        navigation.replace('Login');
+      }, 1500);
     } catch (err) {
       shake();
+      HapticFeedback.trigger('notificationError', hapticOptions);
       setModalData({
         title: 'Signup Failed',
         message: err?.response?.data?.message || 'Something went wrong',
@@ -105,16 +139,29 @@ export default function Signup({ navigation }) {
     }
   };
 
+  /* ===================== RENDER ===================== */
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAFBFC" />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}
+    >
+      <StatusBar
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={COLORS.bg}
+      />
 
-      <PulseCircle style={styles.bgCircleBlue} />
-      <PulseCircle style={styles.bgCirclePurple} delay={800} />
+      {/* === BACKGROUND ATMOSPHERE (MATCHING LANDING/LOGIN) === */}
+      <View style={StyleSheet.absoluteFill}>
+        <PulseCircle style={styles.circlePurple} color="#DDD6FE" delay={0} />
+        <PulseCircle style={styles.circlePink} color="#FBCFE8" delay={800} />
+        <PulseCircle style={styles.circleRed} color="#ffb1aaff" delay={1600} />
+        <PulseCircle style={styles.circleBlue} color="#CDEAFE" delay={2400} />
+      </View>
 
+      {/* MAIN CONTENT */}
       <Animated.View
         style={[
-          styles.card,
+          styles.content,
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }, { translateX: shakeAnim }],
@@ -123,99 +170,105 @@ export default function Signup({ navigation }) {
       >
         {/* HEADER */}
         <View style={styles.header}>
+          <View style={styles.logoBadge}>
+            <Icon name="person-add" size={28} color={COLORS.bg} />
+          </View>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Start managing your finance</Text>
+          <Text style={styles.subtitle}>Start managing your finance today</Text>
         </View>
 
-        {/* NAME */}
-        <Text style={styles.inputLabel}>Full Name</Text>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="John Doe"
-            placeholderTextColor="#9CA3AF"
-            style={styles.input}
-          />
-          {isNameValid && (
-            <View style={styles.checkCircle}>
-              <Text style={styles.check}>✓</Text>
-            </View>
-          )}
-        </View>
-
-        {/* EMAIL */}
-        <Text style={[styles.inputLabel, { marginTop: 14 }]}>
-          Email Address
-        </Text>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="email-address"
-            style={styles.input}
-          />
-          {isEmailValid && (
-            <View style={styles.checkCircle}>
-              <Text style={styles.check}>✓</Text>
-            </View>
-          )}
-        </View>
-
-        {/* PASSWORD */}
-        <Text style={[styles.inputLabel, { marginTop: 14 }]}>Password</Text>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Create password"
-            placeholderTextColor="#9CA3AF"
-            secureTextEntry={!showPassword}
-            style={styles.input}
-          />
-          <TouchableOpacity onPress={() => setShowPassword(p => !p)}>
+        {/* FORM INPUTS */}
+        <View style={styles.formGroup}>
+          {/* Name Input */}
+          <View style={[styles.inputWrapper, { marginBottom: 16 }]}>
             <Icon
-              name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+              name="person-outline"
               size={20}
-              color="#9CA3AF"
+              color={COLORS.muted}
+              style={{ marginRight: 12 }}
             />
-          </TouchableOpacity>
-        </View>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Full Name"
+              placeholderTextColor={COLORS.muted}
+              style={styles.input}
+            />
+            {isNameValid && (
+              <Icon name="checkmark-circle" size={20} color="#10B981" />
+            )}
+          </View>
 
-        <Text style={styles.helperText}>
-          Password must be at least 6 characters
-        </Text>
+          {/* Email Input */}
+          <View style={[styles.inputWrapper, { marginBottom: 16 }]}>
+            <Icon
+              name="mail-outline"
+              size={20}
+              color={COLORS.muted}
+              style={{ marginRight: 12 }}
+            />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email Address"
+              placeholderTextColor={COLORS.muted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+            {isEmailValid && (
+              <Icon name="checkmark-circle" size={20} color="#10B981" />
+            )}
+          </View>
+
+          {/* Password Input */}
+          <View style={styles.inputWrapper}>
+            <Icon
+              name="lock-closed-outline"
+              size={20}
+              color={COLORS.muted}
+              style={{ marginRight: 12 }}
+            />
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Create Password"
+              placeholderTextColor={COLORS.muted}
+              secureTextEntry={!showPassword}
+              style={styles.input}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Icon
+                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+                color={COLORS.muted}
+              />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.helperText}>Min. 6 characters</Text>
+        </View>
 
         {/* SIGNUP BUTTON */}
-        <LinearGradient
-          colors={['#4F46E5', '#4338CA']}
-          style={[
-            styles.primaryBtn,
-            !(isNameValid && isEmailValid && isPasswordValid) && {
-              opacity: 0.6,
-            },
-          ]}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={handleSignup}
+          style={[styles.primaryBtn]}
         >
-          <TouchableOpacity
-            disabled={!(isNameValid && isEmailValid && isPasswordValid)}
-            style={styles.primaryBtnInner}
-            activeOpacity={0.9}
-            onPress={handleSignup}
-          >
-            <Text style={styles.primaryText}>Create Account</Text>
-          </TouchableOpacity>
-        </LinearGradient>
+          <Text style={styles.primaryText}>Sign Up</Text>
+          <View style={styles.btnIconCircle}>
+            <Icon name="arrow-forward" size={16} color="#fff" />
+          </View>
+        </TouchableOpacity>
 
         {/* FOOTER */}
-        <Text style={styles.footer}>
-          Already have an account?{' '}
-          <Text style={styles.signup} onPress={() => navigation.goBack()}>
-            Login
-          </Text>
-        </Text>
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>Already have an account?</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.signupText}>Login</Text>
+          </TouchableOpacity>
+        </View>
 
+        {/* ALERT BOX */}
         <AlertBox
           visible={modalVisible}
           title={modalData.title}
@@ -224,14 +277,14 @@ export default function Signup({ navigation }) {
           onClose={() => setModalVisible(false)}
         />
       </Animated.View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
-/* ================= PULSE CIRCLE ================= */
-const PulseCircle = ({ style, delay = 0 }) => {
+/* ================= PULSE ANIMATION ================= */
+const PulseCircle = ({ style, delay = 0, color }) => {
   const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -239,25 +292,25 @@ const PulseCircle = ({ style, delay = 0 }) => {
         Animated.delay(delay),
         Animated.parallel([
           Animated.timing(scale, {
-            toValue: 1.12,
-            duration: 2600,
+            toValue: 1.15,
+            duration: 3000,
             useNativeDriver: true,
           }),
           Animated.timing(opacity, {
-            toValue: 0.6,
-            duration: 2600,
+            toValue: 0.5,
+            duration: 3000,
             useNativeDriver: true,
           }),
         ]),
         Animated.parallel([
           Animated.timing(scale, {
             toValue: 1,
-            duration: 2600,
+            duration: 3000,
             useNativeDriver: true,
           }),
           Animated.timing(opacity, {
-            toValue: 1,
-            duration: 2600,
+            toValue: 0.8,
+            duration: 3000,
             useNativeDriver: true,
           }),
         ]),
@@ -265,85 +318,142 @@ const PulseCircle = ({ style, delay = 0 }) => {
     ).start();
   }, []);
 
-  return <Animated.View style={[style, { transform: [{ scale }], opacity }]} />;
+  return (
+    <Animated.View
+      style={[
+        style,
+        { backgroundColor: color, opacity, transform: [{ scale }] },
+      ]}
+    />
+  );
 };
 
 /* ================= STYLES ================= */
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFBFC',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
+const createStyles = COLORS =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.bg, // Matches Landing BG #F9FAFB
+      justifyContent: 'center',
+    },
 
-  bgCircleBlue: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: '#CDEAFE',
-    top: -80,
-    right: -100,
-  },
-  bgCirclePurple: {
-    position: 'absolute',
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: '#DDD6FE',
-    bottom: -100,
-    left: -80,
-  },
+    // === BACKGROUND CIRCLES ===
+    circlePurple: {
+      position: 'absolute',
+      width: 220,
+      height: 220,
+      borderRadius: 110,
+      top: -60,
+      right: -80,
+    },
+    circlePink: {
+      position: 'absolute',
+      width: 180,
+      height: 180,
+      borderRadius: 90,
+      top: 150,
+      left: -60,
+    },
+    circleRed: {
+      position: 'absolute',
+      width: 180,
+      height: 180,
+      borderRadius: 90,
+      bottom: 100,
+      right: -80,
+    },
+    circleBlue: {
+      position: 'absolute',
+      width: 200,
+      height: 200,
+      borderRadius: 100,
+      bottom: -50,
+      left: -80,
+    },
 
-  card: { padding: 22 },
+    // === CONTENT WRAPPER ===
+    content: { padding: 24, zIndex: 10 },
 
-  header: { marginBottom: 26 },
+    // Header
+    header: { alignItems: 'center', marginBottom: 32 },
+    logoBadge: {
+      width: 56,
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: COLORS.text, // Solid contrast block
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      shadowColor: COLORS.text,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '800',
+      color: COLORS.text,
+      marginBottom: 6,
+      letterSpacing: -0.5,
+    },
+    subtitle: { fontSize: 16, color: COLORS.muted },
 
-  title: { fontSize: 24, fontWeight: '800', color: '#111827' },
-  subtitle: { marginTop: 6, fontSize: 14, color: '#6B7280' },
+    // Inputs
+    formGroup: { marginBottom: 16 },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: 56,
+      borderRadius: 20,
+      backgroundColor: COLORS.card,
+      paddingHorizontal: 20,
+      borderWidth: 1,
+      borderColor: 'rgba(0,0,0,0.03)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.03,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    input: { flex: 1, fontSize: 16, color: COLORS.text, fontWeight: '500' },
+    helperText: {
+      marginTop: 6,
+      fontSize: 12,
+      color: COLORS.muted,
+      marginLeft: 8,
+    },
 
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
+    // Button
+    primaryBtn: {
+      height: 60,
+      borderRadius: 999,
+      backgroundColor: COLORS.text, // Solid #111827
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+      marginTop: 24,
+      marginBottom: 24,
+      shadowColor: COLORS.text,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    primaryBtnDisabled: { opacity: 0.5, shadowOpacity: 0 },
+    primaryText: { color: COLORS.bg, fontSize: 18, fontWeight: '700' },
+    btnIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 58,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FAFAFB',
-    paddingHorizontal: 14,
-  },
-
-  input: { flex: 1, fontSize: 16, color: '#111827' },
-
-  checkCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#ECFDF5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  check: { color: '#22C55E', fontWeight: '800' },
-
-  helperText: { marginTop: 8, fontSize: 12, color: '#6B7280' },
-
-  primaryBtn: {
-    height: 56,
-    borderRadius: 20,
-    marginTop: 22,
-    marginBottom: 24,
-  },
-  primaryBtnInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-
-  footer: { textAlign: 'center', fontSize: 14, color: '#6B7280' },
-  signup: { color: '#4338CA', fontWeight: '700' },
-});
+    // Footer
+    footerContainer: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
+    footerText: { color: COLORS.muted, fontSize: 15 },
+    signupText: { color: COLORS.text, fontWeight: '800', fontSize: 15 },
+  });
