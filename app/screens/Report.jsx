@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unstable-nested-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-native/no-inline-styles */
 import React, { useEffect, useState, useRef } from 'react';
@@ -11,6 +12,7 @@ import {
   Alert,
   Animated,
   StatusBar,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Navbar from '../components/Navbar';
@@ -22,6 +24,8 @@ import Loading from '../animation/Loading';
 import BottomNav from '../components/BottomNav';
 import { useTheme } from '../theme/ThemeContext';
 import { DarkTheme, LightTheme } from '../theme/color';
+import RNFS from 'react-native-fs';
+import FileViewer from 'react-native-file-viewer';
 
 const Report = ({ navigation, route }) => {
   /* ===================== THEME ===================== */
@@ -88,6 +92,26 @@ const Report = ({ navigation, route }) => {
     loadData();
   }, [type]);
 
+  const exportPDF = async () => {
+    try {
+      const res = await api.exportPendingPDF({
+        type,
+        clientId: client?._id,
+      });
+
+      if (!res.pdfUrl) {
+        Alert.alert('Error', 'PDF URL not received');
+        return;
+      }
+
+      navigation.navigate('PdfViewer', {
+        url: res.pdfUrl,
+      });
+    } catch (e) {
+      Alert.alert('Error', 'Failed to open PDF');
+    }
+  };
+
   /* ===================== RENDER HELPERS ===================== */
 
   const KPI = ({ label, value, color }) => (
@@ -99,8 +123,12 @@ const Report = ({ navigation, route }) => {
     </View>
   );
 
-  const ExportBtn = ({ label }) => (
-    <TouchableOpacity style={styles.exportBtn} activeOpacity={0.7}>
+  const ExportBtn = ({ label, onPress }) => (
+    <TouchableOpacity
+      style={styles.exportBtn}
+      activeOpacity={0.7}
+      onPress={onPress}
+    >
       <Icon name="download-outline" size={16} color={COLORS.text} />
       <Text style={styles.exportText}>{label}</Text>
     </TouchableOpacity>
@@ -181,7 +209,7 @@ const Report = ({ navigation, route }) => {
         <View style={styles.exportRow}>
           <Text style={styles.sectionTitle}>{data.length} Transactions</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <ExportBtn label="PDF" />
+            <ExportBtn label="PDF" onPress={exportPDF} />
             <ExportBtn label="CSV" />
           </View>
         </View>
@@ -233,9 +261,9 @@ const Report = ({ navigation, route }) => {
                   <View style={styles.actions}>
                     {/* Payment Method Icon */}
                     <View style={styles.paymentMethod}>
-                      {item.paymentMethod === 'Cash' ? (
+                      {item.paymentMethod === 'cash' ? (
                         <Cash width={16} height={16} />
-                      ) : item.paymentMethod === 'Bank' ? (
+                      ) : item.paymentMethod === 'bank' ? (
                         <GPay width={16} height={16} />
                       ) : (
                         <Idbi width={18} height={16} />
@@ -260,6 +288,31 @@ const Report = ({ navigation, route }) => {
 };
 
 export default Report;
+
+const downloadAndOpenPDF = async pdfUrl => {
+  try {
+    const fileName = `report-${Date.now()}.pdf`;
+    const localPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+
+    console.log('Saved at:', localPath);
+
+    const result = await RNFS.downloadFile({
+      fromUrl: pdfUrl,
+      toFile: localPath,
+    }).promise;
+
+    if (result.statusCode !== 200) {
+      throw new Error('Download failed');
+    }
+
+    await FileViewer.open(localPath, {
+      showOpenWithDialog: true,
+    });
+  } catch (err) {
+    console.log('PDF OPEN ERROR:', err);
+    Alert.alert('Error', 'No PDF viewer found. Please install a PDF reader.');
+  }
+};
 
 /* ================= STYLES ================= */
 

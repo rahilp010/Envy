@@ -35,6 +35,8 @@ import { SYSTEM_ACCOUNTS } from '../services/statics';
 import Cash from '../../assets/cash.svg';
 import Gpay from '../../assets/googlepay.svg';
 import Idbi from '../../assets/IDBIBank.svg';
+import PaymentModal from '../utility/PaymentModal';
+import AccountSelectionModal from '../utility/AccountSelectionModal';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -79,6 +81,8 @@ const SkeletonCard = () => {
 };
 
 const Sales = ({ navigation }) => {
+  const scrollRef = useRef(null);
+  const fieldPositions = useRef({});
   const [sales, setSales] = useState([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -118,12 +122,6 @@ const Sales = ({ navigation }) => {
   const [dueDate, setDueDate] = useState('');
   const [billNo, setBillNo] = useState('');
   const [description, setDescription] = useState('');
-  const [bank, setBank] = useState('');
-  const [cash, setCash] = useState('');
-  const [type, setType] = useState('Receipt');
-  const [sendTo, setSendTo] = useState('');
-  const [chequeNumber, setChequeNumber] = useState('');
-  const [transactionAccount, setTransactionAccount] = useState('');
 
   const [pickerType, setPickerType] = useState('');
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -148,9 +146,35 @@ const Sales = ({ navigation }) => {
 
   const [appliedFilters, setAppliedFilters] = useState(null);
 
+  const [accountModalVisible, setAccountModalVisible] = useState(false);
+
+  const [accounts, setAccounts] = useState([]);
+
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [totalAmount, setTotalAmount] = useState();
+  const [paymentList, setPaymentList] = useState([]);
+
+  const normalizeArray = data => (Array.isArray(data) ? data : []);
+
   useEffect(() => {
     slideAnim.setValue(200);
   }, []);
+
+  const registerField = name => ({
+    onLayout: e => {
+      fieldPositions.current[name] = e.nativeEvent.layout.y;
+    },
+  });
+
+  const scrollToError = fieldName => {
+    const y = fieldPositions.current[fieldName];
+    if (y !== undefined && scrollRef.current) {
+      scrollRef.current.scrollTo({
+        y: Math.max(y - 40, 0), // offset for header
+        animated: true,
+      });
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -302,24 +326,27 @@ const Sales = ({ navigation }) => {
     setDueDate('');
     setBillNo('');
     setDescription('');
-    setBank('');
-    setCash('');
-    setType('Receipt');
-    setSendTo('');
-    setChequeNumber('');
-    setTransactionAccount('');
     setErrors({});
     setStockError('');
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (finalPayments = paymentList) => {
     let newErrors = {};
     if (!clientName.trim()) newErrors.clientName = true;
     if (!quantity.trim()) newErrors.quantity = true;
     if (!salePrice.trim()) newErrors.salePrice = true;
 
+    if (!finalPayments || finalPayments.length === 0) {
+      Alert.alert('Payment Required', 'Please select a payment method');
+      return;
+    }
+
     setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
+    if (Object.keys(newErrors).length > 0) {
+      const firstErrorField = Object.keys(newErrors)[0];
+      setTimeout(() => scrollToError(firstErrorField), 100);
+      return;
+    }
 
     const saleData = {
       clientId: clientId,
@@ -330,8 +357,13 @@ const Sales = ({ navigation }) => {
       multipleProducts: null,
       isMultiProduct: false,
       statusOfTransaction: status,
-      paymentType,
-      paymentMethod,
+      payments: finalPayments,
+      paymentMethod:
+        finalPayments.map(payment => payment.method)[0] === 'gpay' ||
+        'bank' ||
+        'cheque'
+          ? 'bank'
+          : 'cash',
       pendingAmount: Number(pendingAmount),
       paidAmount:
         status === 'completed' ? Number(totalWithTax) : Number(paidAmount),
@@ -343,7 +375,7 @@ const Sales = ({ navigation }) => {
       totalAmountWithoutTax: subTotal,
       totalAmountWithTax: totalWithTax,
       billNo: billNo || '',
-      methodType: 'Payment',
+      methodType: 'Receipt',
       dueDate: dueDate ? new Date(dueDate) : null,
       description,
       pageName: 'Sale',
@@ -353,7 +385,8 @@ const Sales = ({ navigation }) => {
       try {
         setLoading(true);
         const res = await api.updateSales(editingSale._id, saleData);
-        const updated = res.sale || res;
+        const updated = res;
+
         if (!updated || !updated._id) {
           throw new Error('Updated sale missing _id');
         }
@@ -433,12 +466,6 @@ const Sales = ({ navigation }) => {
     );
     setBillNo(item.billNo?.toString() || '');
     setDescription(item.description || '');
-    setBank(item.bank || '');
-    setCash(item.cash || '');
-    setType(item.type || 'Receipt');
-    setSendTo(item.sendTo || '');
-    setChequeNumber(item.chequeNumber || '');
-    setTransactionAccount(item.transactionAccount || '');
 
     slideAnim.setValue(220);
     setModalVisible(true);
@@ -493,6 +520,15 @@ const Sales = ({ navigation }) => {
   //   fetchClients();
   //   fetchProducts();
   // }, []);
+
+  const onSubmitSales = () => {
+    if (!productId || !quantity) {
+      Alert.alert('Error', 'Fill required fields');
+      return;
+    }
+    setTotalAmount(Number(totalWithTax.toFixed(2)));
+    setShowPaymentModal(true);
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -1032,7 +1068,7 @@ const Sales = ({ navigation }) => {
               </View>
 
               {/* ✅ PAYMENT METHOD */}
-              <View style={styles.paymentRow}>
+              {/* <View style={styles.paymentRow}>
                 {['Cash', 'Bank'].map(pmethod => (
                   <TouchableOpacity
                     key={pmethod}
@@ -1057,7 +1093,7 @@ const Sales = ({ navigation }) => {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </View> */}
 
               {/* ✅ PARTIAL AMOUNTS */}
               {paymentType === 'partial' && (
@@ -1122,7 +1158,7 @@ const Sales = ({ navigation }) => {
                 <TouchableOpacity
                   style={[styles.saveBtn, stockError && { opacity: 0.5 }]}
                   disabled={!!stockError}
-                  onPress={handleSubmit}
+                  onPress={onSubmitSales}
                 >
                   <Text style={styles.saveText}>
                     {editingSale ? 'Update' : 'Submit'}
@@ -1298,6 +1334,31 @@ const Sales = ({ navigation }) => {
         </Animated.View>
       </Modal>
 
+      <PaymentModal
+        visible={showPaymentModal}
+        defaultAmount={totalAmount}
+        clients={clients}
+        onClose={() => setShowPaymentModal(false)}
+        onConfirm={payment => {
+          const payments = [payment];
+          setPaymentList(payments);
+          setShowPaymentModal(false);
+          handleSubmit(payments);
+        }}
+      />
+
+      <AccountSelectionModal
+        visible={accountModalVisible}
+        accounts={accounts}
+        onClose={() => setAccountModalVisible(false)}
+        onSelect={account => {
+          setTransactionAccount(account._id);
+          setAccountModalVisible(false);
+
+          Alert.alert('Account Selected', `${account.accountName}`);
+        }}
+      />
+
       {/* ✅ BOTTOM NAV */}
       <BottomNav navigation={navigation} active="sales" />
     </View>
@@ -1418,9 +1479,9 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
                   </Text>
                 </View>
                 <View style={styles.paymentMethod}>
-                  {item.paymentMethod === 'Cash' ? (
+                  {item.paymentMethod === 'cash' ? (
                     <Cash width={20} height={21} />
-                  ) : item.paymentMethod === 'Bank' ? (
+                  ) : item.paymentMethod === 'bank' ? (
                     <Gpay width={18} height={22} />
                   ) : (
                     <Idbi width={22} height={20} />

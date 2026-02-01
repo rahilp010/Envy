@@ -23,6 +23,7 @@ import Signup from './app/screens/Signup';
 import AuthGuard from './app/screens/AuthGuard';
 import Bootstarp from './app/utility/Bootstrap';
 import ProfileDrawer from './app/components/ProfileDrawer';
+import PdfViewer from './app/services/PdfViewer';
 import { ThemeProvider } from './app/theme/ThemeContext';
 
 // const Tab = createBottomTabNavigator();
@@ -217,6 +218,15 @@ function App() {
             }}
             name="Signup"
             component={Signup}
+          />
+          <Stack.Screen
+            options={{
+              headerShown: false,
+              tabBarVisible: false,
+              tabBarStyle: { display: 'none' },
+            }}
+            name="PdfViewer"
+            component={PdfViewer}
           />
           <Stack.Screen
             name="NotFound"

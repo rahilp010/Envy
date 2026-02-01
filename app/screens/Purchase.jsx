@@ -21,11 +21,9 @@ import {
   PanResponder,
   ScrollView,
   RefreshControl,
-  LayoutAnimation,
   Switch,
   Alert,
   Platform,
-  Image,
 } from 'react-native';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
@@ -114,7 +112,6 @@ const Purchase = ({ navigation }) => {
   const [isPartial, setIsPartial] = useState(false);
   const [paymentType, setPaymentType] = useState('full');
   const [paymentMethod, setPaymentMethod] = useState('Bank');
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
 
   const [paidAmount, setPaidAmount] = useState('');
   const [pendingAmount, setPendingAmount] = useState('');
@@ -125,12 +122,6 @@ const Purchase = ({ navigation }) => {
   const [dueDate, setDueDate] = useState('');
   const [billNo, setBillNo] = useState('');
   const [description, setDescription] = useState('');
-  const [bank, setBank] = useState('');
-  const [cash, setCash] = useState('');
-  const [type, setType] = useState('Receipt');
-  const [sendTo, setSendTo] = useState('');
-  const [chequeNumber, setChequeNumber] = useState('');
-  const [transactionAccount, setTransactionAccount] = useState('');
 
   const [pickerType, setPickerType] = useState('');
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -157,9 +148,11 @@ const Purchase = ({ navigation }) => {
 
   const [accountModalVisible, setAccountModalVisible] = useState(false);
 
-  const [accounts, setAccounts] = useState([]); // fetched from API
-  const [showPaymentMethod, setShowPaymentMethod] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [accounts, setAccounts] = useState([]);
+
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [totalAmount, setTotalAmount] = useState();
+  const [paymentList, setPaymentList] = useState([]);
 
   const normalizeArray = data => (Array.isArray(data) ? data : []);
 
@@ -341,39 +334,21 @@ const Purchase = ({ navigation }) => {
     setDueDate('');
     setBillNo('');
     setDescription('');
-    setBank('');
-    setCash('');
-    setType('Receipt');
-    setSendTo('');
-    setChequeNumber('');
-    setTransactionAccount('');
     setErrors({});
     setStockError('');
   };
 
-  const handlePaymentMethod = () => {
+  const handleSubmit = async (finalPayments = paymentList) => {
     let newErrors = {};
     if (!clientName.trim()) newErrors.clientName = true;
     if (!productName.trim()) newErrors.productName = true;
     if (!quantity.trim()) newErrors.quantity = true;
     if (!purchasePrice.trim()) newErrors.purchasePrice = true;
 
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) {
-      const firstErrorField = Object.keys(newErrors)[0];
-      setTimeout(() => scrollToError(firstErrorField), 100);
+    if (!finalPayments || finalPayments.length === 0) {
+      Alert.alert('Payment Required', 'Please select a payment method');
       return;
     }
-
-    setPaymentModalVisible(true);
-  };
-
-  const handleSubmit = async () => {
-    let newErrors = {};
-    if (!clientName.trim()) newErrors.clientName = true;
-    if (!productName.trim()) newErrors.productName = true;
-    if (!quantity.trim()) newErrors.quantity = true;
-    if (!purchasePrice.trim()) newErrors.purchasePrice = true;
 
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
@@ -392,7 +367,13 @@ const Purchase = ({ navigation }) => {
       isMultiProduct: false,
       statusOfTransaction: status,
       paymentType,
-      paymentMethod,
+      payments: finalPayments,
+      paymentMethod:
+        finalPayments.map(payment => payment.method)[0] === 'gpay' ||
+        'bank' ||
+        'cheque'
+          ? 'bank'
+          : 'cash',
       pendingAmount: Number(pendingAmount),
       paidAmount:
         status === 'completed' ? Number(totalWithTax) : Number(paidAmount),
@@ -415,8 +396,6 @@ const Purchase = ({ navigation }) => {
         setLoading(true);
         const res = await api.updatePurchase(editingPurchase._id, purchaseData);
         const updated = res;
-
-        console.log('updated', updated);
 
         if (!updated._id) {
           throw new Error('Updated purchase missing _id');
@@ -499,12 +478,6 @@ const Purchase = ({ navigation }) => {
     );
     setBillNo(item.billNo?.toString() || '');
     setDescription(item.description || '');
-    setBank(item.bank || '');
-    setCash(item.cash || '');
-    setType(item.type || 'Receipt');
-    setSendTo(item.sendTo || '');
-    setChequeNumber(item.chequeNumber || '');
-    setTransactionAccount(item.transactionAccount || '');
 
     slideAnim.setValue(220);
     setModalVisible(true);
@@ -559,6 +532,15 @@ const Purchase = ({ navigation }) => {
   //   fetchClients();
   //   fetchProducts();
   // }, []);
+
+  const onSubmitPurchase = () => {
+    if (!productId || !quantity) {
+      Alert.alert('Error', 'Fill required fields');
+      return;
+    }
+    setTotalAmount(Number(totalWithTax.toFixed(2)));
+    setShowPaymentModal(true);
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -1118,7 +1100,7 @@ const Purchase = ({ navigation }) => {
               </View>
 
               {/* ✅ PAYMENT METHOD */}
-              <View style={styles.paymentRow}>
+              {/* <View style={styles.paymentRow}>
                 {['Cash', 'Bank'].map(pmethod => (
                   <TouchableOpacity
                     key={pmethod}
@@ -1143,7 +1125,7 @@ const Purchase = ({ navigation }) => {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </View> */}
 
               {/* ✅ PARTIAL AMOUNTS */}
               {paymentType === 'partial' && (
@@ -1209,7 +1191,7 @@ const Purchase = ({ navigation }) => {
                 <TouchableOpacity
                   style={[styles.saveBtn, stockError && { opacity: 0.5 }]}
                   disabled={!!stockError}
-                  onPress={handleSubmit}
+                  onPress={onSubmitPurchase}
                 >
                   <Text style={styles.saveText}>
                     {editingPurchase ? 'Update' : 'Submit'}
@@ -1413,41 +1395,16 @@ const Purchase = ({ navigation }) => {
         </Animated.View>
       </Modal>
 
-      {/* <PaymentModal
-        paymentModalVisible={paymentModalVisible}
-        setPaymentModalVisible={setPaymentModalVisible}
-        paymentMethod={paymentMethod}
-        setPaymentMethod={setPaymentMethod}
-      /> */}
-
       <PaymentModal
-        visible={paymentModalVisible}
-        onClose={() => setPaymentModalVisible(false)}
-        onSelect={method => {
-          setPaymentMethod(method.id);
-          setPaymentModalVisible(false);
-
-          if (method.id === 'gpay') {
-            // 🔥 NEXT STEP
-            setTimeout(() => {
-              setAccountModalVisible(true);
-            }, 200);
-            return;
-          }
-
-          if (method.id === 'cash') {
-            // ✅ instant
-            Alert.alert('Payment Selected', 'Cash');
-            return;
-          }
-
-          if (method.id === 'cheque') {
-            Alert.alert('Cheque selected', 'Open cheque details modal');
-          }
-
-          if (method.id === 'client') {
-            Alert.alert('Client Transfer', 'Open client transfer flow');
-          }
+        visible={showPaymentModal}
+        defaultAmount={totalAmount}
+        clients={clients}
+        onClose={() => setShowPaymentModal(false)}
+        onConfirm={payment => {
+          const payments = [payment];
+          setPaymentList(payments);
+          setShowPaymentModal(false);
+          handleSubmit(payments);
         }}
       />
 
@@ -1583,9 +1540,9 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
                   </Text>
                 </View>
                 <View style={styles.paymentMethod}>
-                  {item.paymentMethod === 'Cash' ? (
+                  {item.paymentMethod === 'cash' ? (
                     <Cash width={20} height={21} />
-                  ) : item.paymentMethod === 'Bank' ? (
+                  ) : item.paymentMethod === 'bank' ? (
                     <Gpay width={18} height={22} />
                   ) : (
                     <Idbi width={22} height={20} />

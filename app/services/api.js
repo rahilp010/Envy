@@ -502,60 +502,6 @@ const api = {
         }
     },
 
-    // openSalesPDF: async () => {
-    //     try {
-    //         const response = await fetch(`${API_URL}/sales`, {
-    //             method: 'GET',
-    //             headers: { 'Content-Type': 'application/json' },
-    //         });
-
-    //         if (!response.ok) {
-    //             const text = await response.text();
-    //             throw new Error(text);
-    //         }
-
-    //         const blob = await response.blob();
-    //         const url = URL.createObjectURL(blob);
-    //         const link = document.createElement('a');
-    //         link.href = url;
-    //         link.download = 'sales.pdf';
-    //         link.click();
-    //         URL.revokeObjectURL(url);
-    //     } catch (error) {
-    //         throw new Error('Network error: ' + error.message);
-    //     }
-    // },
-
-    openSalesPDF: async () => {
-        try {
-            const res = await RNBlobUtil.config({
-                fileCache: true,
-                appendExt: 'pdf',
-            }).fetch('GET', `${API_URL}/sales/pdf`);
-
-            console.log('DOWNLOAD SUCCESS:', res.path());
-        } catch (err) {
-            console.log('RAW ERROR:', err);
-            console.log('ERROR STRING:', String(err));
-            console.log('ERROR JSON:', JSON.stringify(err, null, 2));
-
-            Alert.alert(
-                'Download failed',
-                err?.message || 'Unknown native error',
-            );
-        }
-    },
-
-    openSalesExcel: async () => {
-        try {
-            await Linking.openURL(`${API_URL}/sales/excel`, {
-                headers: await getAuthHeaders(),
-            });
-        } catch (e) {
-            Alert.alert('Error', 'Unable to download Excel');
-        }
-    },
-
     getPendingCollections: async () => {
         try {
             const response = await fetch(`${API_URL}/reports/pendingCollection`, {
@@ -575,7 +521,19 @@ const api = {
         } catch (error) {
             Alert.alert('Error', 'Unable to load data');
         }
+    },
+
+    exportPendingPDF: async () => {
+        try {
+            const res = await fetch(`${API_URL}/generate/pending`, {
+                headers: await getAuthHeaders(),
+            });
+            return await res.json();
+        } catch (error) {
+            Alert.alert('Error', 'Unable to load data');
+        }
     }
+
 
 };
 
