@@ -523,17 +523,30 @@ const api = {
         }
     },
 
-    exportPendingPDF: async () => {
+    exportPendingPDF: async ({ type, html }) => {
         try {
-            const res = await fetch(`${API_URL}/generate/pending`, {
-                headers: await getAuthHeaders(),
+            const res = await fetch(`${API_URL}/report/pending`, {
+                method: 'POST',
+                headers: {
+                    ...(await getAuthHeaders()),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type,
+                    html,
+                }),
             });
-            return await res.json();
+
+            if (!res.ok) {
+                throw new Error('PDF generation failed');
+            }
+
+            return await res.blob();
         } catch (error) {
-            Alert.alert('Error', 'Unable to load data');
+            Alert.alert('Error', 'Unable to generate PDF');
+            throw error;
         }
     }
-
 
 };
 

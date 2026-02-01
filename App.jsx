@@ -23,8 +23,8 @@ import Signup from './app/screens/Signup';
 import AuthGuard from './app/screens/AuthGuard';
 import Bootstarp from './app/utility/Bootstrap';
 import ProfileDrawer from './app/components/ProfileDrawer';
-import PdfViewer from './app/services/PdfViewer';
 import { ThemeProvider } from './app/theme/ThemeContext';
+import PreviewScreen from './app/services/PreviewScreen';
 
 // const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -225,8 +225,8 @@ function App() {
               tabBarVisible: false,
               tabBarStyle: { display: 'none' },
             }}
-            name="PdfViewer"
-            component={PdfViewer}
+            name="PreviewScreen"
+            component={PreviewScreen}
           />
           <Stack.Screen
             name="NotFound"

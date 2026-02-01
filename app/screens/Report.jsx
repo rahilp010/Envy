@@ -24,8 +24,7 @@ import Loading from '../animation/Loading';
 import BottomNav from '../components/BottomNav';
 import { useTheme } from '../theme/ThemeContext';
 import { DarkTheme, LightTheme } from '../theme/color';
-import RNFS from 'react-native-fs';
-import FileViewer from 'react-native-file-viewer';
+import templateHTML from '../services/templateHTML';
 
 const Report = ({ navigation, route }) => {
   /* ===================== THEME ===================== */
@@ -92,24 +91,18 @@ const Report = ({ navigation, route }) => {
     loadData();
   }, [type]);
 
-  const exportPDF = async () => {
-    try {
-      const res = await api.exportPendingPDF({
-        type,
-        clientId: client?._id,
-      });
+  const exportPDF = () => {
+    const html = templateHTML({
+      type,
+      data,
+      summary,
+      client, // optional (single client report)
+    });
 
-      if (!res.pdfUrl) {
-        Alert.alert('Error', 'PDF URL not received');
-        return;
-      }
-
-      navigation.navigate('PdfViewer', {
-        url: res.pdfUrl,
-      });
-    } catch (e) {
-      Alert.alert('Error', 'Failed to open PDF');
-    }
+    navigation.navigate('PreviewScreen', {
+      html,
+      type,
+    });
   };
 
   /* ===================== RENDER HELPERS ===================== */
@@ -288,31 +281,6 @@ const Report = ({ navigation, route }) => {
 };
 
 export default Report;
-
-const downloadAndOpenPDF = async pdfUrl => {
-  try {
-    const fileName = `report-${Date.now()}.pdf`;
-    const localPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
-
-    console.log('Saved at:', localPath);
-
-    const result = await RNFS.downloadFile({
-      fromUrl: pdfUrl,
-      toFile: localPath,
-    }).promise;
-
-    if (result.statusCode !== 200) {
-      throw new Error('Download failed');
-    }
-
-    await FileViewer.open(localPath, {
-      showOpenWithDialog: true,
-    });
-  } catch (err) {
-    console.log('PDF OPEN ERROR:', err);
-    Alert.alert('Error', 'No PDF viewer found. Please install a PDF reader.');
-  }
-};
 
 /* ================= STYLES ================= */
 
