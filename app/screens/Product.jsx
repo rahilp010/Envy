@@ -36,7 +36,7 @@ const SkeletonCard = () => {
     Animated.loop(
       Animated.timing(shimmer, {
         toValue: 1,
-        duration: 1200,
+        duration: 1300,
         useNativeDriver: true,
       }),
     ).start();
@@ -44,7 +44,7 @@ const SkeletonCard = () => {
 
   const translateX = shimmer.interpolate({
     inputRange: [0, 1],
-    outputRange: [-200, 200],
+    outputRange: [-300, 300],
   });
 
   return (
@@ -58,6 +58,7 @@ const SkeletonCard = () => {
       </View>
 
       <Animated.View
+        pointerEvents="none"
         style={[styles.skeletonShimmer, { transform: [{ translateX }] }]}
       />
     </View>
@@ -97,6 +98,7 @@ const Product = ({ navigation }) => {
   const [pickerType, setPickerType] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [clients, setClients] = useState([]);
+  const [searchTextPicker, setSearchTextPicker] = useState('');
 
   const [csvModalVisible, setCsvModalVisible] = useState(false);
   const [csvText, setCsvText] = useState('');
@@ -127,6 +129,46 @@ const Product = ({ navigation }) => {
 
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    if (!pickerVisible) {
+      setSearchTextPicker('');
+    }
+  }, [pickerVisible]);
+
+  const getPickerData = () => {
+    let data = [];
+
+    if (pickerType === 'client') {
+      data = clients || [];
+    } else if (pickerType === 'asset') {
+      data = assetTypes || [];
+    } else if (pickerType === 'machinePart') {
+      data = (Array.isArray(products) ? products : []).filter(
+        p => p.type !== 'MACHINE',
+      );
+    }
+
+    if (!searchTextPicker) return data;
+
+    return data.filter(item => {
+      const text =
+        pickerType === 'client'
+          ? item.clientName
+          : pickerType === 'asset'
+          ? item
+          : item.productName;
+
+      return text?.toLowerCase().includes(searchTextPicker.toLowerCase());
+    });
+  };
+
+  const getPickerTitle = () => {
+    if (pickerType === 'client') return 'Select Client';
+    if (pickerType === 'asset') return 'Select Asset Type';
+    if (pickerType === 'machinePart') return 'Select Machine Part';
+    return 'Select Item';
+  };
 
   const filteredProducts = (Array.isArray(products) ? products : [])?.filter(
     item => {
@@ -507,7 +549,7 @@ const Product = ({ navigation }) => {
         </Animated.View>
       )}
 
-      {loading && (
+      {/* {loading && (
         <Modal transparent animationType="fade" visible>
           <View style={styles.overlay}>
             <View style={styles.loaderBox}>
@@ -515,12 +557,12 @@ const Product = ({ navigation }) => {
             </View>
           </View>
         </Modal>
-      )}
+      )} */}
 
       {/* ✅ PRODUCT LIST */}
       {loading ? (
         <View style={{ padding: 16 }}>
-          {[1, 2, 3, 4, 5].map(i => (
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <SkeletonCard key={i} />
           ))}
         </View>
@@ -882,47 +924,44 @@ const Product = ({ navigation }) => {
       <Modal visible={pickerVisible} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setPickerVisible(false)}>
           <View style={styles.pickerOverlay}>
-            {/* STOP propagation INSIDE */}
-            <TouchableWithoutFeedback onPress={() => setPickerVisible(false)}>
+            <TouchableWithoutFeedback>
               <View style={styles.centerModal}>
-                <Text style={styles.pickerTitle}>
-                  Select{' '}
-                  {String(pickerType).charAt(0).toUpperCase() +
-                    String(pickerType).slice(1)}
-                </Text>
+                {/* TITLE */}
+                <Text style={styles.pickerTitleModal}>{getPickerTitle()}</Text>
+
+                {/* SEARCH */}
+                <View style={styles.searchBoxPicker}>
+                  <TextInput
+                    placeholder="Search..."
+                    placeholderTextColor="#9CA3AF"
+                    value={searchTextPicker}
+                    onChangeText={setSearchTextPicker}
+                    style={styles.searchInputPicker}
+                    autoFocus
+                  />
+                </View>
+
+                {/* LIST */}
                 <FlatList
-                  data={
-                    pickerType === 'client'
-                      ? clients
-                      : pickerType === 'asset'
-                      ? assetTypes
-                      : pickerType === 'machinePart'
-                      ? (Array.isArray(products) ? products : []).filter(
-                          p => p.type !== 'MACHINE',
-                        )
-                      : []
-                  }
+                  data={getPickerData()}
                   keyExtractor={(item, index) =>
                     item?._id ? item._id : index.toString()
                   }
+                  keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                   ListEmptyComponent={
-                    <Text style={styles.emptyText}>No data available</Text>
+                    <Text style={styles.emptyText}>No results found</Text>
                   }
                   renderItem={({ item }) => {
                     let label = '';
 
-                    if (pickerType === 'client') {
-                      label = item.clientName;
-                    } else if (pickerType === 'asset') {
-                      label = item;
-                    } else if (pickerType === 'machinePart') {
-                      label = item.productName;
-                    }
+                    if (pickerType === 'client') label = item.clientName;
+                    if (pickerType === 'asset') label = item;
+                    if (pickerType === 'machinePart') label = item.productName;
 
                     return (
                       <TouchableOpacity
-                        style={[styles.optionRow]}
+                        style={styles.optionRowPicker}
                         onPress={() => {
                           if (pickerType === 'client') {
                             setClient(item.clientName);
@@ -937,7 +976,6 @@ const Product = ({ navigation }) => {
                             setMachineParts(prev => {
                               if (prev.some(p => p.productId === item._id))
                                 return prev;
-
                               return [
                                 ...prev,
                                 {
@@ -949,21 +987,10 @@ const Product = ({ navigation }) => {
                             });
                           }
 
-                          // if (pickerType === 'machinePart') {
-                          //   setMachineParts(prev => [
-                          //     ...prev,
-                          //     {
-                          //       productId: item._id,
-                          //       productName: item.productName,
-                          //       qty: 1,
-                          //     },
-                          //   ]);
-                          // }
-
                           setPickerVisible(false);
                         }}
                       >
-                        <Text style={[styles.optionText]}>{label}</Text>
+                        <Text style={styles.optionTextPicker}>{label}</Text>
                       </TouchableOpacity>
                     );
                   }}
@@ -1774,9 +1801,9 @@ const styles = StyleSheet.create({
   skeletonCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 14,
     overflow: 'hidden',
   },
@@ -1814,9 +1841,9 @@ const styles = StyleSheet.create({
 
   skeletonShimmer: {
     position: 'absolute',
-    top: 0,
-    left: -80,
-    width: 80,
+    top: 15,
+    left: 150,
+    width: 150,
     height: '100%',
     backgroundColor: 'rgba(255,255,255,0.4)',
   },
@@ -2163,5 +2190,38 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
+  },
+
+  searchBoxPicker: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    marginHorizontal: 15,
+  },
+
+  searchInputPicker: {
+    height: 40,
+    fontSize: 14,
+    color: '#111827',
+  },
+
+  pickerTitleModal: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+
+  optionRowPicker: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+
+  optionTextPicker: {
+    fontSize: 15,
+    color: '#111827',
   },
 });

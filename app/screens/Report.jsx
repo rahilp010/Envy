@@ -26,6 +26,43 @@ import { useTheme } from '../theme/ThemeContext';
 import { DarkTheme, LightTheme } from '../theme/color';
 import templateHTML from '../services/templateHTML';
 
+const Shimmer = ({ style }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1300,
+        useNativeDriver: true,
+      }),
+    ).start();
+  }, []);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-300, 300],
+  });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        style,
+        {
+          position: 'absolute',
+          top: 0,
+          left: -60,
+          width: 120,
+          height: '100%',
+          backgroundColor: 'rgba(255,255,255,0.35)',
+          transform: [{ translateX }],
+        },
+      ]}
+    />
+  );
+};
+
 const Report = ({ navigation, route }) => {
   /* ===================== THEME ===================== */
   const { theme } = useTheme();
@@ -116,6 +153,78 @@ const Report = ({ navigation, route }) => {
     </View>
   );
 
+  const KPISkeleton = ({ COLORS }) => (
+    <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
+      {[1, 2].map(i => (
+        <View
+          key={i}
+          style={{
+            flex: 1,
+            backgroundColor: '#FFFFFF',
+            borderRadius: 24,
+            padding: 16,
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              height: 18,
+              width: '60%',
+              borderRadius: 8,
+              backgroundColor: '#D1D5DB',
+              marginBottom: 8,
+            }}
+          />
+          <View
+            style={{
+              height: 10,
+              width: '40%',
+              borderRadius: 6,
+              backgroundColor: '#D1D5DB',
+            }}
+          />
+          <Shimmer />
+        </View>
+      ))}
+    </View>
+  );
+
+  const ReportCardSkeleton = ({ COLORS }) => (
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: COLORS.card,
+        borderRadius: 20,
+        marginBottom: 14,
+        overflow: 'hidden',
+      }}
+    >
+      <View style={{ width: 6, backgroundColor: '#FFFFFF' }} />
+
+      <View style={{ flex: 1, padding: 16 }}>
+        <View
+          style={{
+            height: 14,
+            width: '60%',
+            borderRadius: 8,
+            backgroundColor: '#D1D5DB',
+            marginBottom: 10,
+          }}
+        />
+        <View
+          style={{
+            height: 18,
+            width: '40%',
+            borderRadius: 8,
+            backgroundColor: '#D1D5DB',
+          }}
+        />
+      </View>
+
+      <Shimmer />
+    </View>
+  );
+
   const ExportBtn = ({ label, onPress }) => (
     <TouchableOpacity
       style={styles.exportBtn}
@@ -134,7 +243,7 @@ const Report = ({ navigation, route }) => {
       />
       <Navbar title="Reports" page="report" />
 
-      {loading && (
+      {/* {loading && (
         <Modal transparent animationType="fade" visible>
           <View style={styles.overlay}>
             <View style={styles.loaderBox}>
@@ -142,7 +251,7 @@ const Report = ({ navigation, route }) => {
             </View>
           </View>
         </Modal>
-      )}
+      )} */}
 
       <Animated.View
         style={[styles.safe, { transform: [{ translateY: translateAnim }] }]}
@@ -185,18 +294,24 @@ const Report = ({ navigation, route }) => {
         </View>
 
         {/* ================= STATS ================= */}
-        <View style={styles.kpiRow}>
-          <KPI
-            label={type === 'collection' ? 'Total To Receive' : 'Total To Pay'}
-            value={summary.totalAmount}
-            color={type === 'collection' ? '#10B981' : '#EF4444'}
-          />
-          <KPI
-            label="Overdue (>30 Days)"
-            value={summary.overdueAmount}
-            color="#EF4444"
-          />
-        </View>
+        {loading ? (
+          <KPISkeleton COLORS={COLORS} />
+        ) : (
+          <View style={styles.kpiRow}>
+            <KPI
+              label={
+                type === 'collection' ? 'Total To Receive' : 'Total To Pay'
+              }
+              value={summary.totalAmount}
+              color={type === 'collection' ? '#10B981' : '#EF4444'}
+            />
+            <KPI
+              label="Overdue (>30 Days)"
+              value={summary.overdueAmount}
+              color="#EF4444"
+            />
+          </View>
+        )}
 
         {/* ================= EXPORT ================= */}
         <View style={styles.exportRow}>
@@ -208,71 +323,83 @@ const Report = ({ navigation, route }) => {
         </View>
 
         {/* ================= LIST ================= */}
-        <FlatList
-          data={data}
-          keyExtractor={i => i.id}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              {/* Colored Indicator Bar */}
-              <View
-                style={[
-                  styles.sideBar,
-                  {
-                    backgroundColor:
-                      type === 'collection' ? '#10B981' : '#EF4444',
-                  },
-                ]}
-              />
+        {loading ? (
+          <View>
+            {[1, 2, 3, 4, 5].map(i => (
+              <ReportCardSkeleton key={i} COLORS={COLORS} />
+            ))}
+          </View>
+        ) : (
+          <FlatList
+            data={data}
+            keyExtractor={i => i.id}
+            contentContainerStyle={{ paddingBottom: 120 }}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                {/* Colored Indicator Bar */}
+                <View
+                  style={[
+                    styles.sideBar,
+                    {
+                      backgroundColor:
+                        type === 'collection' ? '#10B981' : '#EF4444',
+                    },
+                  ]}
+                />
 
-              <View style={styles.cardContent}>
-                {/* Header: Name & Date */}
-                <View style={styles.cardRow}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {type === 'collection' ? item.clientName : item.vendorName}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {new Date(item.date).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                    })}
-                  </Text>
-                </View>
+                <View style={styles.cardContent}>
+                  {/* Header: Name & Date */}
+                  <View style={styles.cardRow}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {type === 'collection'
+                        ? item.clientName
+                        : item.vendorName}
+                    </Text>
+                    <Text style={styles.meta}>
+                      {new Date(item.date).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                      })}
+                    </Text>
+                  </View>
 
-                {/* Body: Amount & Actions */}
-                <View style={[styles.cardRow, { marginTop: 6 }]}>
-                  <Text
-                    style={[
-                      styles.amount,
-                      { color: type === 'collection' ? '#10B981' : '#EF4444' },
-                    ]}
-                  >
-                    ₹ {item.pendingAmount.toLocaleString('en-IN')}
-                  </Text>
+                  {/* Body: Amount & Actions */}
+                  <View style={[styles.cardRow, { marginTop: 6 }]}>
+                    <Text
+                      style={[
+                        styles.amount,
+                        {
+                          color: type === 'collection' ? '#10B981' : '#EF4444',
+                        },
+                      ]}
+                    >
+                      ₹ {item.pendingAmount.toLocaleString('en-IN')}
+                    </Text>
 
-                  <View style={styles.actions}>
-                    {/* Payment Method Icon */}
-                    <View style={styles.paymentMethod}>
-                      {item.paymentMethod === 'cash' ? (
-                        <Cash width={16} height={16} />
-                      ) : item.paymentMethod === 'bank' ? (
-                        <GPay width={16} height={16} />
-                      ) : (
-                        <Idbi width={18} height={16} />
-                      )}
-                    </View>
+                    <View style={styles.actions}>
+                      {/* Payment Method Icon */}
+                      <View style={styles.paymentMethod}>
+                        {item.paymentMethod === 'cash' ? (
+                          <Cash width={16} height={16} />
+                        ) : item.paymentMethod === 'bank' ? (
+                          <GPay width={16} height={16} />
+                        ) : (
+                          <Idbi width={18} height={16} />
+                        )}
+                      </View>
 
-                    {/* Status Pill */}
-                    <View style={styles.statusPill}>
-                      <Text style={styles.statusText}>Pending</Text>
+                      {/* Status Pill */}
+                      <View style={styles.statusPill}>
+                        <Text style={styles.statusText}>Pending</Text>
+                      </View>
                     </View>
                   </View>
                 </View>
               </View>
-            </View>
-          )}
-        />
+            )}
+          />
+        )}
       </Animated.View>
 
       <BottomNav navigation={navigation} active="report" />

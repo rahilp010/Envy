@@ -80,6 +80,41 @@ const SkeletonCard = () => {
   );
 };
 
+const StatsSkeleton = () => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: true,
+      }),
+    ).start();
+  }, []);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-120, 120],
+  });
+
+  return (
+    <View style={styles.statsGrid}>
+      {[1, 2, 3, 4].map(i => (
+        <View key={i} style={[styles.statTile, styles.statSkeleton]}>
+          <View style={styles.statSkeletonLabel} />
+          <View style={styles.statSkeletonValue} />
+
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.statShimmer, { transform: [{ translateX }] }]}
+          />
+        </View>
+      ))}
+    </View>
+  );
+};
+
 const Sales = ({ navigation }) => {
   const scrollRef = useRef(null);
   const fieldPositions = useRef({});
@@ -125,6 +160,8 @@ const Sales = ({ navigation }) => {
 
   const [pickerType, setPickerType] = useState('');
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+
   const [refreshing, setRefreshing] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
@@ -165,6 +202,32 @@ const Sales = ({ navigation }) => {
       fieldPositions.current[name] = e.nativeEvent.layout.y;
     },
   });
+
+  useEffect(() => {
+    if (!pickerVisible) setPickerSearch('');
+  }, [pickerVisible]);
+
+  const getPickerData = () => {
+    let data = [];
+
+    if (pickerType === 'client' || pickerType === 'filterClient') {
+      data = clients.filter(
+        i => !SYSTEM_ACCOUNTS.includes(i.clientName.toLowerCase()),
+      );
+    } else if (pickerType === 'product') {
+      data = products || [];
+    } else if (pickerType === 'tax') {
+      data = ['5', '12', '18', '28'];
+    }
+
+    if (!pickerSearch) return data;
+
+    return data.filter(item => {
+      const label = item.clientName || item.productName || item.toString();
+
+      return label?.toLowerCase().includes(pickerSearch.toLowerCase());
+    });
+  };
 
   const scrollToError = fieldName => {
     const y = fieldPositions.current[fieldName];
@@ -684,36 +747,40 @@ const Sales = ({ navigation }) => {
       )}
 
       <View style={styles.statsWrapper}>
-        <View style={styles.statsGrid}>
-          <View style={[styles.statTile, styles.statYellow]}>
-            <Text style={styles.statLabel}>Sales</Text>
-            <Text style={styles.statValue}>{saleStats.count}</Text>
-          </View>
+        {loading ? (
+          <StatsSkeleton />
+        ) : (
+          <View style={styles.statsGrid}>
+            <View style={[styles.statTile, styles.statYellow]}>
+              <Text style={styles.statLabel}>Sales</Text>
+              <Text style={styles.statValue}>{saleStats.count}</Text>
+            </View>
 
-          <View style={[styles.statTile, styles.statGreen]}>
-            <Text style={styles.statLabel}>Total</Text>
-            <Text style={styles.statValue}>
-              ₹{saleStats.totalAmount.toFixed(2)}
-            </Text>
-          </View>
+            <View style={[styles.statTile, styles.statGreen]}>
+              <Text style={styles.statLabel}>Total</Text>
+              <Text style={styles.statValue}>
+                ₹{saleStats.totalAmount.toFixed(2)}
+              </Text>
+            </View>
 
-          <View style={[styles.statTile, styles.statBlue]}>
-            <Text style={styles.statLabel}>Paid</Text>
-            <Text style={styles.statValue}>
-              ₹{saleStats.paidAmount.toFixed(2)}
-            </Text>
-          </View>
+            <View style={[styles.statTile, styles.statBlue]}>
+              <Text style={styles.statLabel}>Paid</Text>
+              <Text style={styles.statValue}>
+                ₹{saleStats.paidAmount.toFixed(2)}
+              </Text>
+            </View>
 
-          <View style={[styles.statTile, styles.statRed]}>
-            <Text style={styles.statLabel}>Pending</Text>
-            <Text style={styles.statValue}>
-              ₹{saleStats.pendingAmount.toFixed(2)}
-            </Text>
+            <View style={[styles.statTile, styles.statRed]}>
+              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statValue}>
+                ₹{saleStats.pendingAmount.toFixed(2)}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
-      {loading && (
+      {/* {loading && (
         <Modal transparent animationType="fade" visible>
           <View style={styles.overlay}>
             <View style={styles.loaderBox}>
@@ -721,7 +788,7 @@ const Sales = ({ navigation }) => {
             </View>
           </View>
         </Modal>
-      )}
+      )} */}
 
       {/* ✅ Sales LIST */}
       {loading ? (
@@ -1172,61 +1239,103 @@ const Sales = ({ navigation }) => {
       <Modal visible={pickerVisible} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setPickerVisible(false)}>
           <View style={styles.pickerOverlay}>
-            <View style={styles.pickerBox}>
-              <Text style={styles.pickerTitle}>
-                Select{' '}
-                {String(pickerType).charAt(0).toUpperCase() +
-                  String(pickerType).slice(1)}
-              </Text>
-              {(pickerType === 'client' || pickerType === 'filterClient'
-                ? clients.filter(
-                    i => !SYSTEM_ACCOUNTS.includes(i.clientName.toLowerCase()),
-                  )
-                : pickerType === 'product'
-                ? products
-                : ['5', '12', '18', '28']
-              ).map(item => (
-                <TouchableOpacity
-                  key={item._id || item}
-                  style={styles.pickerItem}
-                  onPress={() => {
-                    if (pickerType === 'client') {
-                      console.log(item);
+            <TouchableWithoutFeedback>
+              <View style={styles.centerModal}>
+                <Text style={styles.pickerTitleModal}>
+                  Select{' '}
+                  {String(pickerType).charAt(0).toUpperCase() +
+                    String(pickerType).slice(1)}
+                </Text>
 
-                      setClientName(item.clientName);
-                      setClientId(item._id);
-                    }
-                    if (pickerType === 'filterClient') {
-                      setFilterClientName(item.clientName);
-                      setFilterClientId(item._id);
-                    }
-                    if (pickerType === 'product') {
-                      setProductName(item.productName);
-                      setProductId(item._id);
-                      setProductPrice(item.saleAmount || '');
-                      // TODO: Set stock from item.isStock
-                      setSelectedProductStock(item.isStock || 0);
-                    }
-                    if (pickerType === 'tax') setTaxRate(item);
+                {/* SEARCH */}
+                <View style={styles.searchBoxPicker}>
+                  <TextInput
+                    placeholder="Search..."
+                    placeholderTextColor="#9CA3AF"
+                    value={pickerSearch}
+                    onChangeText={setPickerSearch}
+                    style={styles.searchInputPicker}
+                    autoFocus
+                  />
+                </View>
 
-                    setPickerVisible(false);
-                  }}
+                {/* LIST */}
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
                 >
-                  <Text style={styles.pickerText}>
-                    {item.clientName || item.productName || `${item}%`}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              {pickerType === 'client' && clients.length < 0 && (
-                <Text style={styles.placeholder}>No clients loaded</Text>
-              )}
-              {pickerType === 'product' && products.length < 0 && (
-                <Text style={styles.placeholder}>No products loaded</Text>
-              )}
-              {pickerType === 'filterClient' && clients.length < 0 && (
-                <Text style={styles.placeholder}>No clients loaded</Text>
-              )}
-            </View>
+                  {getPickerData().length === 0 ? (
+                    <Text style={styles.placeholderPicker}>No data found</Text>
+                  ) : (
+                    getPickerData().map(item => (
+                      <TouchableOpacity
+                        key={item._id || item}
+                        style={styles.optionRowPicker}
+                        onPress={() => {
+                          if (pickerType === 'client') {
+                            setClientName(item.clientName);
+                            setClientId(item._id);
+                          }
+
+                          if (pickerType === 'filterClient') {
+                            setFilterClientName(item.clientName);
+                            setFilterClientId(item._id);
+                          }
+
+                          if (pickerType === 'product') {
+                            setProductName(item.productName);
+                            setProductId(item._id);
+                            setProductPrice(item.saleAmount || '');
+                            setSelectedProductStock(item.productQuantity || 0);
+                          }
+
+                          if (pickerType === 'tax') {
+                            setTaxRate(item);
+                          }
+
+                          setPickerVisible(false);
+                        }}
+                      >
+                        <View style={styles.optionRowContent}>
+                          <Text style={styles.optionTextPicker}>
+                            {item.clientName || item.productName || `${item}%`}
+                          </Text>
+
+                          {/* PRODUCT QUANTITY BADGE */}
+                          {pickerType === 'product' && (
+                            <View
+                              style={[
+                                styles.qtyBadge,
+                                {
+                                  backgroundColor:
+                                    (item.productQuantity || 0) > 0
+                                      ? '#DCFCE7'
+                                      : '#FEE2E2',
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.qtyTextPicker,
+                                  {
+                                    color:
+                                      (item.productQuantity || 0) > 0
+                                        ? '#166534'
+                                        : '#991B1B',
+                                  },
+                                ]}
+                              >
+                                {item.productQuantity || 0}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -2057,9 +2166,9 @@ const styles = StyleSheet.create({
   skeletonCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 14,
     overflow: 'hidden',
   },
@@ -2097,8 +2206,8 @@ const styles = StyleSheet.create({
 
   skeletonShimmer: {
     position: 'absolute',
-    top: 0,
-    left: -150,
+    top: 15,
+    left: 150,
     width: 150,
     height: '100%',
     backgroundColor: 'rgba(255,255,255,0.35)',
@@ -2510,5 +2619,100 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
     paddingHorizontal: 18,
+  },
+
+  centerModal: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 16,
+    maxHeight: '75%',
+    width: '90%',
+    alignSelf: 'center',
+  },
+
+  pickerTitleModal: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+
+  searchBoxPicker: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+
+  searchInputPicker: {
+    height: 40,
+    fontSize: 14,
+    color: '#111827',
+  },
+
+  optionRowPicker: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+
+  optionTextPicker: {
+    fontSize: 15,
+    color: '#111827',
+  },
+
+  placeholderPicker: {
+    textAlign: 'center',
+    color: '#6B7280',
+    marginVertical: 20,
+  },
+
+  optionRowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  qtyBadge: {
+    minWidth: 32,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  qtyTextPicker: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  statSkeleton: {
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+
+  statSkeletonLabel: {
+    width: '55%',
+    height: 10,
+    borderRadius: 6,
+    backgroundColor: '#D1D5DB',
+  },
+
+  statSkeletonValue: {
+    width: '40%',
+    height: 18,
+    borderRadius: 8,
+    backgroundColor: '#D1D5DB',
+    marginTop: 8,
+  },
+
+  statShimmer: {
+    position: 'absolute',
+    top: 0,
+    left: -40,
+    width: 100,
+    height: '200%',
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
 });

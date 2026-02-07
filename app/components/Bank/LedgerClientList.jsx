@@ -190,7 +190,7 @@ const LedgerClientList = ({ navigation, route }) => {
       {/* CONTENT */}
       {refreshing && clients.length === 0 ? (
         <View style={{ padding: 16 }}>
-          {[1, 2, 3, 4, 5].map(i => (
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <SkeletonCard key={i} COLORS={COLORS} />
           ))}
         </View>
@@ -399,7 +399,7 @@ const createStyles = COLORS =>
     skeletonCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: COLORS.card,
+      backgroundColor: '#FFFFFF',
       borderRadius: 20,
       padding: 16,
       marginBottom: 14,
@@ -409,33 +409,33 @@ const createStyles = COLORS =>
       width: 52,
       height: 52,
       borderRadius: 12,
-      backgroundColor: COLORS.border,
+      backgroundColor: '#D1D5DB',
       marginRight: 12,
     },
     skeletonLineLg: {
       height: 14,
       width: '60%',
       borderRadius: 8,
-      backgroundColor: COLORS.border,
+      backgroundColor: '#D1D5DB',
       marginBottom: 8,
     },
     skeletonLineMd: {
       height: 12,
       width: '45%',
       borderRadius: 8,
-      backgroundColor: COLORS.border,
+      backgroundColor: '#D1D5DB',
       marginBottom: 6,
     },
     skeletonLineSm: {
       height: 10,
       width: '35%',
       borderRadius: 8,
-      backgroundColor: COLORS.border,
+      backgroundColor: '#D1D5DB',
     },
     skeletonShimmer: {
       position: 'absolute',
-      top: 0,
-      left: -150,
+      top: 15,
+      left: 150,
       width: 150,
       height: '100%',
       backgroundColor: 'rgba(255,255,255,0.2)', // Light shimmer

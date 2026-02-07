@@ -38,6 +38,7 @@ export default function TransferScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [transferHistory, setTransferHistory] = useState([]);
+  const [accountSearch, setAccountSearch] = useState('');
 
   // Animation Refs
   const fromAnim = useRef(new Animated.Value(0)).current;
@@ -51,6 +52,19 @@ export default function TransferScreen({ navigation }) {
   useEffect(() => {
     loadHistory();
   }, [fromAccount]); // Reload history when account changes
+
+  useEffect(() => {
+    if (!pickerType) setAccountSearch('');
+  }, [pickerType]);
+
+  const filteredAccounts = (accounts || []).filter(acc => {
+    if (!accountSearch) return true;
+
+    return (
+      acc.accountName?.toLowerCase().includes(accountSearch.toLowerCase()) ||
+      acc.bankName?.toLowerCase().includes(accountSearch.toLowerCase())
+    );
+  });
 
   /* ===================== API ===================== */
   const loadAccounts = async () => {
@@ -308,44 +322,112 @@ export default function TransferScreen({ navigation }) {
       <Modal visible={!!pickerType} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setPickerType(null)}>
           <View style={styles.overlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                Select {pickerType === 'from' ? 'Source' : 'Destination'}
-              </Text>
-              <FlatList
-                data={accounts}
-                keyExtractor={i => i._id}
-                style={{ maxHeight: 300 }}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.pickerItem}
-                    onPress={() => {
-                      if (pickerType === 'from') setFromAccount(item);
-                      else setToAccount(item);
-                      setPickerType(null);
-                    }}
-                  >
-                    <View>
-                      <Text style={styles.pickerItemText}>
-                        {item.accountName}
-                      </Text>
-                      <Text style={styles.pickerItemSub}>
-                        ₹ {item.currentBalance}
-                      </Text>
-                    </View>
-                    {((pickerType === 'from' &&
-                      fromAccount?._id === item._id) ||
-                      (pickerType === 'to' && toAccount?._id === item._id)) && (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={20}
-                        color={COLORS.primary}
-                      />
-                    )}
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
+            <TouchableWithoutFeedback>
+              <View style={styles.centerModal}>
+                {/* TITLE */}
+                <Text style={styles.pickerTitle}>
+                  Select{' '}
+                  {pickerType === 'from'
+                    ? 'Source Account'
+                    : 'Destination Account'}
+                </Text>
+
+                {/* SEARCH */}
+                <View style={styles.searchBox}>
+                  <TextInput
+                    placeholder="Search account..."
+                    placeholderTextColor="#9CA3AF"
+                    value={accountSearch}
+                    onChangeText={setAccountSearch}
+                    style={styles.searchInput}
+                    autoFocus
+                  />
+                </View>
+
+                {/* LIST */}
+                <FlatList
+                  data={filteredAccounts}
+                  keyExtractor={i => i._id}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  style={{ maxHeight: 320 }}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyText}>No accounts found</Text>
+                  }
+                  renderItem={({ item }) => {
+                    const isSelected =
+                      (pickerType === 'from' &&
+                        fromAccount?._id === item._id) ||
+                      (pickerType === 'to' && toAccount?._id === item._id);
+
+                    const isCash = item.accountType === 'Cash';
+
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.optionRow,
+                          isSelected && styles.optionRowSelected,
+                        ]}
+                        onPress={() => {
+                          if (pickerType === 'from') setFromAccount(item);
+                          else setToAccount(item);
+                          setPickerType(null);
+                        }}
+                      >
+                        {/* LEFT */}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.optionText}>
+                            {item.accountName}
+                          </Text>
+                        </View>
+
+                        {/* RIGHT BADGES */}
+                        <View style={styles.badgeRow}>
+                          {/* ACCOUNT TYPE BADGE */}
+                          <View
+                            style={[
+                              styles.typeBadge,
+                              {
+                                backgroundColor: isCash ? '#FEF3C7' : '#EFF6FF',
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.typeBadgeText,
+                                {
+                                  color: isCash ? '#92400E' : '#1D4ED8',
+                                },
+                              ]}
+                            >
+                              {Number(item.currentBalance || 0).toLocaleString(
+                                'en-IN',
+                                {
+                                  style: 'currency',
+                                  currency: 'INR',
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0,
+                                },
+                              )}
+                            </Text>
+                          </View>
+
+                          {/* SELECTED ICON */}
+                          {isSelected && (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={20}
+                              color={COLORS.primary}
+                              style={{ marginLeft: 8 }}
+                            />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              </View>
+            </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -610,7 +692,7 @@ const createStyles = COLORS =>
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
-      padding: 24,
+      padding: 0,
     },
     modalContent: {
       backgroundColor: COLORS.card,
@@ -690,5 +772,81 @@ const createStyles = COLORS =>
     confirmText: {
       color: '#fff',
       fontWeight: '700',
+    },
+
+    searchInput: {
+      height: 40,
+      fontSize: 14,
+      color: '#111827',
+    },
+
+    centerModal: {
+      backgroundColor: '#fff',
+      borderRadius: 20,
+      padding: 16,
+      width: '90%',
+      maxHeight: '80%',
+      alignSelf: 'center',
+    },
+
+    pickerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginBottom: 10,
+      color: '#111827',
+    },
+
+    searchBox: {
+      backgroundColor: '#F3F4F6',
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      marginBottom: 10,
+    },
+
+    optionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: '#E5E7EB',
+    },
+
+    optionRowSelected: {
+      backgroundColor: '#F8FAFC',
+    },
+
+    optionText: {
+      fontSize: 15,
+      color: '#111827',
+    },
+
+    optionSubText: {
+      fontSize: 13,
+      color: '#6B7280',
+      marginTop: 2,
+    },
+
+    badgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+
+    typeBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 10,
+    },
+
+    typeBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+
+    emptyText: {
+      textAlign: 'center',
+      color: '#6B7280',
+      marginVertical: 20,
     },
   });

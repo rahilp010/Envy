@@ -437,7 +437,7 @@ const Client = ({ navigation }) => {
           </TouchableOpacity>
         </Animated.View>
       )}
-
+      {/* 
       {loading && (
         <Modal transparent animationType="fade" visible>
           <View style={styles.overlay}>
@@ -446,12 +446,12 @@ const Client = ({ navigation }) => {
             </View>
           </View>
         </Modal>
-      )}
+      )} */}
 
       {/* ✅ PRODUCT LIST */}
       {loading ? (
         <View style={{ padding: 16 }}>
-          {[1, 2, 3, 4, 5].map(i => (
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <SkeletonCard key={i} />
           ))}
         </View>
@@ -712,6 +712,7 @@ const Client = ({ navigation }) => {
         <TouchableWithoutFeedback onPress={() => setPickerVisible(false)}>
           <View style={styles.pickerOverlay}>
             <View style={styles.pickerBox}>
+              <Text style={styles.pickerTitleModal}>Select Account Type</Text>
               {['Creditor', 'Debtor'].map(item => (
                 <TouchableOpacity
                   key={item}
@@ -1295,6 +1296,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  pickerTitleModal: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+
   pickerBox: {
     backgroundColor: '#fff',
     width: '80%',
@@ -1427,9 +1435,9 @@ const styles = StyleSheet.create({
   skeletonCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 14,
     overflow: 'hidden',
   },
@@ -1467,8 +1475,8 @@ const styles = StyleSheet.create({
 
   skeletonShimmer: {
     position: 'absolute',
-    top: 0,
-    left: -150,
+    top: 15,
+    left: 150,
     width: 150,
     height: '100%',
     backgroundColor: 'rgba(255,255,255,0.35)',

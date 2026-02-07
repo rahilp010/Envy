@@ -279,7 +279,7 @@ const Account = ({ navigation }) => {
 
       {refreshing && accounts.length === 0 ? (
         <View style={{ padding: 16 }}>
-          {[1, 2, 3, 4, 5].map(i => (
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <SkeletonCard key={i} />
           ))}
         </View>
@@ -1050,9 +1050,9 @@ const styles = StyleSheet.create({
   skeletonCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 14,
     overflow: 'hidden',
   },
@@ -1090,8 +1090,8 @@ const styles = StyleSheet.create({
 
   skeletonShimmer: {
     position: 'absolute',
-    top: 0,
-    left: -150,
+    top: 15,
+    left: 150,
     width: 150,
     height: '100%',
     backgroundColor: 'rgba(255,255,255,0.35)',
