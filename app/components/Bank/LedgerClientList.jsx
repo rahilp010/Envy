@@ -132,10 +132,14 @@ const LedgerClientList = ({ navigation, route }) => {
       !SYSTEM_ACCOUNTS.includes(item.clientName.toLowerCase()),
   );
 
+  console.log('filteredClients', filteredClients);
+
   const filteredAccountLedger = safeArray(clients)?.filter(
     item =>
       item.clientName === 'BANK ACCOUNT' || item.clientName === 'CASH ACCOUNT',
   );
+
+  console.log('filteredAccountLedger', filteredAccountLedger);
 
   const data =
     client === 'BANK ACCOUNT' || client === 'CASH ACCOUNT'

@@ -55,9 +55,11 @@ export default function BankSystem({ navigation }) {
     }
   };
 
+  console.log('Account', account);
+
   const safeArray = v => (Array.isArray(v) ? v : []);
   const currentAccount = safeArray(account).find(
-    acc => acc?.clientId?.clientName === activeAccount,
+    acc => acc?.accountName === activeAccount,
   );
   const currentBalance = currentAccount?.openingBalance || 0;
 

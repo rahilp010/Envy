@@ -39,8 +39,8 @@ function HomeScreenContent({ navigation }) {
 
   useEffect(() => {
     const loadUser = async () => {
-      const name = await AsyncStorage.getItem('username');
-      if (name) setUsername(name);
+      const name = await AsyncStorage.getItem('authUser');
+      if (name) setUsername(JSON.parse(name).name);
     };
     loadUser();
   }, []);

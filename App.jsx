@@ -23,6 +23,7 @@ import Signup from './app/screens/Signup';
 import AuthGuard from './app/screens/AuthGuard';
 import Bootstarp from './app/utility/Bootstrap';
 import ProfileDrawer from './app/components/ProfileDrawer';
+import PersonalInfo from './app/components/Profiles/PersonalInfo';
 import { ThemeProvider } from './app/theme/ThemeContext';
 import PreviewScreen from './app/services/PreviewScreen';
 
@@ -227,6 +228,15 @@ function App() {
             }}
             name="PreviewScreen"
             component={PreviewScreen}
+          />
+          <Stack.Screen
+            options={{
+              headerShown: false,
+              tabBarVisible: false,
+              tabBarStyle: { display: 'none' },
+            }}
+            name="PersonalInfo"
+            component={PersonalInfo}
           />
           <Stack.Screen
             name="NotFound"

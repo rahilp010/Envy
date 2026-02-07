@@ -31,6 +31,7 @@ export default function Signup({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [phone, setPhone] = useState('');
 
   // Animation Refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -96,11 +97,12 @@ export default function Signup({ navigation }) {
   const isNameValid = name.trim().length >= 2;
   const isEmailValid = email.includes('@') && email.includes('.');
   const isPasswordValid = password.length >= 6;
+  const isPhoneValid = phone.trim().length >= 8;
 
   /* ===================== HANDLERS ===================== */
   const handleSignup = async () => {
     try {
-      if (!isNameValid || !isEmailValid || !isPasswordValid) {
+      if (!isNameValid || !isEmailValid || !isPhoneValid || !isPasswordValid) {
         shake();
         HapticFeedback.trigger('notificationError', hapticOptions);
         setModalData({
@@ -112,7 +114,7 @@ export default function Signup({ navigation }) {
         return;
       }
 
-      await api.signup({ name, email, password });
+      await api.signup({ name, email, password, phone });
 
       HapticFeedback.trigger('notificationSuccess', hapticOptions);
       setModalData({
@@ -217,6 +219,27 @@ export default function Signup({ navigation }) {
               style={styles.input}
             />
             {isEmailValid && (
+              <Icon name="checkmark-circle" size={20} color="#10B981" />
+            )}
+          </View>
+
+          {/* Phone Input */}
+          <View style={[styles.inputWrapper, { marginBottom: 16 }]}>
+            <Icon
+              name="call-outline"
+              size={20}
+              color={COLORS.muted}
+              style={{ marginRight: 12 }}
+            />
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Phone Number"
+              placeholderTextColor={COLORS.muted}
+              keyboardType="phone-pad"
+              style={styles.input}
+            />
+            {isPhoneValid && (
               <Icon name="checkmark-circle" size={20} color="#10B981" />
             )}
           </View>

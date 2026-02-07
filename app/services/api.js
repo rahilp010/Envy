@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 // Replace with your backend URL
-const API_URL = 'http://10.31.37.73:8001/api';
+const API_URL = 'http://10.179.105.73:8001/api';
 // const API_URL = 'https://electron-server-plum.vercel.app/api';
 const getAuthHeaders = async () => {
     const token = await AsyncStorage.getItem('token');
@@ -45,6 +45,19 @@ const api = {
         }
 
         return data;
+    },
+
+    updateProfile: async (id, userData) => {
+        try {
+            const response = await fetch(`${API_URL}/auth/${id}`, {
+                method: 'PUT',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify(userData),
+            });
+            return await response.json();
+        } catch (error) {
+            throw new Error('Network error: ' + error.message);
+        }
     },
 
     logout: async () => {

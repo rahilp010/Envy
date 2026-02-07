@@ -142,7 +142,7 @@ export default function Auth({ navigation }) {
       if (!res?.token) throw new Error('Token missing');
 
       await AsyncStorage.setItem('token', res.token);
-      await AsyncStorage.setItem('username', res.user.name);
+      await AsyncStorage.setItem('authUser', JSON.stringify(res.user));
       await AsyncStorage.setItem('lastPasswordAuth', Date.now().toString());
 
       HapticFeedback.trigger('notificationSuccess', hapticOptions);

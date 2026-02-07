@@ -117,6 +117,8 @@ export default function ProfileScreen({ navigation }) {
   const styles = createStyles(COLORS);
   const insets = useSafeAreaInsets();
   const [username, setUsername] = useState(USER_DATA.name);
+  const [userEmail, setUserEmail] = useState(USER_DATA.email);
+  const [userRole, setUserRole] = useState(USER_DATA.email);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalData, setModalData] = useState({
     title: '',
@@ -128,8 +130,12 @@ export default function ProfileScreen({ navigation }) {
 
   useEffect(() => {
     const loadUser = async () => {
-      const name = await AsyncStorage.getItem('username');
-      if (name) setUsername(name);
+      const name = await AsyncStorage.getItem('authUser');
+      if (name) {
+        setUsername(JSON.parse(name).name);
+        setUserEmail(JSON.parse(name).email);
+        setUserRole(JSON.parse(name).role);
+      }
     };
     loadUser();
   }, []);
@@ -148,7 +154,7 @@ export default function ProfileScreen({ navigation }) {
       'token',
       'lastPasswordAuth',
       'biometricEnabled',
-      'username',
+      'authUser',
     ]);
 
     navigation.reset({
@@ -184,11 +190,11 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
 
-            <Text style={styles.userName}>{username}</Text>
-            <Text style={styles.userEmail}>{USER_DATA.email}</Text>
+            <Text style={styles.userName}>{username || USER_DATA.name}</Text>
+            <Text style={styles.userEmail}>{userEmail || USER_DATA.email}</Text>
 
             <View style={styles.planBadge}>
-              <Text style={styles.planText}>{USER_DATA.role}</Text>
+              <Text style={styles.planText}>{userRole || USER_DATA.role}</Text>
             </View>
           </View>
 
@@ -198,7 +204,7 @@ export default function ProfileScreen({ navigation }) {
             <ProfileOption
               icon="person-outline"
               label="Personal Info"
-              onPress={() => {}}
+              onPress={() => navigation.navigate('PersonalInfo')}
             />
             <ProfileOption
               icon="card-outline"
