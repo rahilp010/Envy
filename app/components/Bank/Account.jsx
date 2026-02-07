@@ -572,7 +572,7 @@ const AccountCard = ({ item, onEdit, openConfirm }) => {
             <View>
               <Text style={styles.title}>{item.accountName}</Text>
               <Text style={styles.subTitle}>
-                {item.bankName || '—'} • {item?.clientId?.accountType}
+                {item.accountNumber || '—'} • {item?.clientId?.accountType}
               </Text>
             </View>
 

@@ -137,6 +137,8 @@ const Client = ({ navigation }) => {
       })
     : [];
 
+  console.log('f', filteredClients);
+
   const pickCSVFile = async () => {
     try {
       const results = await pick({
@@ -364,6 +366,9 @@ const Client = ({ navigation }) => {
       setLoading(true);
       const res = await api.getAllClients();
       setClients(safeArray(res));
+
+      console.log('Safeclient', safeArray(res));
+      console.log('client', res);
 
       await saveClientsToCache(res);
     } catch (err) {

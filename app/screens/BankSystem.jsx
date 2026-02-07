@@ -55,13 +55,11 @@ export default function BankSystem({ navigation }) {
     }
   };
 
-  console.log('Account', account);
-
   const safeArray = v => (Array.isArray(v) ? v : []);
   const currentAccount = safeArray(account).find(
-    acc => acc?.accountName === activeAccount,
+    acc => acc?.clientId?.clientName === activeAccount,
   );
-  const currentBalance = currentAccount?.openingBalance || 0;
+  const currentBalance = currentAccount?.currentBalance || 0;
 
   const toggleEye = () => {
     Animated.sequence([

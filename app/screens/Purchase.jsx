@@ -339,6 +339,7 @@ const Purchase = ({ navigation }) => {
   };
 
   const handleSubmit = async (finalPayments = paymentList) => {
+    debugger;
     let newErrors = {};
     if (!clientName.trim()) newErrors.clientName = true;
     if (!productName.trim()) newErrors.productName = true;
@@ -357,6 +358,8 @@ const Purchase = ({ navigation }) => {
       return;
     }
 
+    console.log('final', finalPayments);
+
     const purchaseData = {
       clientId: clientId,
       productId: productId || null,
@@ -369,11 +372,9 @@ const Purchase = ({ navigation }) => {
       paymentType,
       payments: finalPayments,
       paymentMethod:
-        finalPayments.map(payment => payment.method)[0] === 'gpay' ||
-        'bank' ||
-        'cheque'
-          ? 'bank'
-          : 'cash',
+        finalPayments.map(payment => payment.method)[0] === 'cash'
+          ? 'cash'
+          : 'bank',
       pendingAmount: Number(pendingAmount),
       paidAmount:
         status === 'completed' ? Number(totalWithTax) : Number(paidAmount),

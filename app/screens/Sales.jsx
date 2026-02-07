@@ -359,11 +359,9 @@ const Sales = ({ navigation }) => {
       statusOfTransaction: status,
       payments: finalPayments,
       paymentMethod:
-        finalPayments.map(payment => payment.method)[0] === 'gpay' ||
-        'bank' ||
-        'cheque'
-          ? 'bank'
-          : 'cash',
+        finalPayments.map(payment => payment.method)[0] === 'cash'
+          ? 'cash'
+          : 'bank',
       pendingAmount: Number(pendingAmount),
       paidAmount:
         status === 'completed' ? Number(totalWithTax) : Number(paidAmount),
