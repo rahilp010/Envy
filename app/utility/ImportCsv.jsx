@@ -118,8 +118,16 @@ const ImportCsv = ({
         }
       : {
           validate: validateProductRow,
-          importRow: row =>
-            api.createProduct({
+          importRow: row => {
+            const priceNum = Number(row.productPrice || 0);
+            const qtyNum = Number(row.productQuantity || 0);
+            const taxNum = Number(row.taxRate || 0);
+
+            const totalAmountWithoutTax = priceNum * qtyNum;
+            const taxAmount = (totalAmountWithoutTax * taxNum) / 100;
+            const totalAmountWithTax = totalAmountWithoutTax + taxAmount;
+
+            return api.createProduct({
               productName: row.productName?.toUpperCase(),
               productPrice: Number(row.productPrice || 0),
               productQuantity: Number(row.productQuantity || 0),
@@ -128,11 +136,12 @@ const ImportCsv = ({
               saleHSN: row.saleHSN || '',
               purchaseHSN: row.purchaseHSN || '',
               taxRate: Number(row.taxRate || 0),
-              taxAmount: Number(row.taxAmount || 0),
-              totalAmountWithTax: Number(row.totalAmountWithTax || 0),
-              totalAmountWithoutTax: Number(row.totalAmountWithoutTax || 0),
+              taxAmount: Number(taxAmount || 0),
+              totalAmountWithTax: Number(totalAmountWithTax || 0),
+              totalAmountWithoutTax: Number(totalAmountWithoutTax || 0),
               addParts: row.part || '',
-            }),
+            });
+          },
         };
 
   const handleCSVImport = async () => {

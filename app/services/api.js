@@ -177,11 +177,17 @@ const api = {
         }
     },
 
-    getAllProducts: async () => {
+    getAllProducts: async ({ page = 1, limit = 20, signal } = {}) => {
         try {
-            const response = await fetch(`${API_URL}/products`, {
+            const response = await fetch(`${API_URL}/products?page=${page}&limit=${limit}`, {
                 headers: await getAuthHeaders(),
+                signal
             });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch products');
+            }
+
             return await response.json();
         } catch (error) {
             throw new Error('Network error: ' + error.message);

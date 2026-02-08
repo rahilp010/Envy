@@ -621,33 +621,42 @@ const Client = ({ navigation }) => {
 
               {/* ✅ AMOUNTS */}
               <View style={styles.row2}>
-                <TextInput
-                  placeholder="Pending Amount"
-                  placeholderTextColor="#9CA3AF"
-                  value={pendingAmount}
-                  onChangeText={setPendingAmount}
-                  keyboardType="numeric"
-                  style={styles.inputHalf}
-                />
+                <View style={styles.priceHalf}>
+                  <Text style={styles.currency}>₹</Text>
+                  <TextInput
+                    placeholder="Pending"
+                    placeholderTextColor="#9CA3AF"
+                    value={pendingAmount}
+                    onChangeText={setPendingAmount}
+                    keyboardType="numeric"
+                    style={styles.priceHalfInput}
+                  />
+                </View>
 
-                <TextInput
-                  placeholder="Paid Amount"
-                  placeholderTextColor="#9CA3AF"
-                  value={paidAmount}
-                  onChangeText={setPaidAmount}
-                  keyboardType="numeric"
-                  style={styles.inputHalf}
-                />
+                <View style={styles.priceHalf}>
+                  <Text style={styles.currency}>₹</Text>
+                  <TextInput
+                    placeholder="Paid Amount"
+                    placeholderTextColor="#9CA3AF"
+                    value={paidAmount}
+                    onChangeText={setPaidAmount}
+                    keyboardType="numeric"
+                    style={styles.priceHalfInput}
+                  />
+                </View>
               </View>
 
-              <TextInput
-                placeholder="Pending From Ours"
-                placeholderTextColor="#9CA3AF"
-                value={pendingFromOurs}
-                onChangeText={setPendingFromOurs}
-                keyboardType="numeric"
-                style={styles.input}
-              />
+              <View style={[styles.priceHalf, { marginBottom: 15 }]}>
+                <Text style={styles.currency}>₹</Text>
+                <TextInput
+                  placeholder="Pending From Ours"
+                  placeholderTextColor="#9CA3AF"
+                  value={pendingFromOurs}
+                  onChangeText={setPendingFromOurs}
+                  keyboardType="numeric"
+                  style={[styles.priceHalfInput]}
+                />
+              </View>
 
               {/* ✅ ACCOUNT TYPE PICKER */}
               <TouchableOpacity
@@ -742,24 +751,41 @@ export default Client;
 /* ===================== SWIPE CARD ======================== */
 /* ========================================================= */
 
+const getClientIcon = type => {
+  if (type === 'Employee') return 'people-outline';
+  if (type === 'Vendor') return 'storefront-outline';
+  return 'person-outline';
+};
+
 const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
   const translateX = useRef(new Animated.Value(0)).current;
-  const expandAnim = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
+
+  /* ---------------- EXPAND ---------------- */
 
   const toggleExpand = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(prev => !prev);
   };
 
+  useEffect(() => {
+    Animated.spring(rotateAnim, {
+      toValue: expanded ? 1 : 0,
+      useNativeDriver: true,
+    }).start();
+  }, [expanded]);
+
+  /* ---------------- DELETE ---------------- */
+
   const deleteTranslate = translateX.interpolate({
-    inputRange: [-160, 0],
-    outputRange: [0, 140],
+    inputRange: [-120, 0],
+    outputRange: [0, 100],
     extrapolate: 'clamp',
   });
 
   const deleteOpacity = translateX.interpolate({
-    inputRange: [-140, -60],
+    inputRange: [-100, -40],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
@@ -771,20 +797,22 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
     }).start();
   };
 
+  /* ---------------- PAN ---------------- */
+
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 15,
 
       onPanResponderMove: (_, g) => {
         if (g.dx < 0) {
-          translateX.setValue(Math.max(g.dx, -160));
+          translateX.setValue(Math.max(g.dx, -120));
         }
       },
 
       onPanResponderRelease: (_, g) => {
-        if (g.dx < -110) {
+        if (g.dx < -90) {
           Animated.spring(translateX, {
-            toValue: -140,
+            toValue: -100,
             speed: 20,
             bounciness: 0,
             useNativeDriver: true,
@@ -798,132 +826,131 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
     }),
   ).current;
 
+  /* ---------------- SAFE VALUES ---------------- */
+
+  const clientName =
+    typeof item.clientName === 'object'
+      ? item.clientName?.clientName
+      : item.clientName;
+
+  const accountType =
+    typeof item.accountType === 'object'
+      ? item.accountType?.name
+      : item.accountType;
+
+  /* ---------------- RENDER ---------------- */
+
   return (
     <View style={styles.swipeWrapper}>
+      {/* DELETE BG */}
       <View style={styles.deleteBg}>
         <Animated.View
-          style={{
-            transform: [{ translateX: deleteTranslate }],
-            opacity: deleteOpacity,
-          }}
+          style={[
+            styles.deletePill,
+            {
+              transform: [{ translateX: deleteTranslate }],
+              opacity: deleteOpacity,
+            },
+          ]}
         >
-          <Text style={styles.deleteText}>Delete</Text>
+          <Icon name="trash-outline" size={18} color="#DC2626" />
         </Animated.View>
       </View>
 
+      {/* CARD */}
       <Animated.View
-        style={[styles.productCardCollapsed, { transform: [{ translateX }] }]}
+        style={[styles.card, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={toggleExpand}
-          style={{ flex: 1 }}
-        >
-          {/* ✅ COLLAPSED VIEW */}
-          <View style={styles.collapsedRow}>
-            <View>
-              <Text numberOfLines={1} style={styles.productTitle}>
-                {item.clientName}
-              </Text>
-              <Text style={styles.assetType}>
-                {item.accountType} [ {item.gstNo} ]
-              </Text>
-            </View>
-
-            <View
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: 10,
-              }}
-            >
-              <View style={styles.stockBadge}>
-                <Text style={styles.stockText}>
-                  Pending: {item.pendingAmount || 0}
-                </Text>
+        <TouchableOpacity activeOpacity={0.9} onPress={toggleExpand}>
+          {/* COLLAPSED (SAME AS PRODUCT) */}
+          <View style={styles.row}>
+            {/* LEFT */}
+            <View style={styles.leftBlock}>
+              <View style={styles.iconCircle}>
+                <Icon
+                  name={getClientIcon(accountType)}
+                  size={18}
+                  color="#fff"
+                />
               </View>
 
-              <TouchableOpacity
-                onPress={toggleExpand}
-                activeOpacity={0.7}
-                style={styles.arrowBtn}
+              <View style={styles.textBlock}>
+                <Text style={styles.productTitle} numberOfLines={1}>
+                  {clientName || '—'}
+                </Text>
+
+                <View style={styles.metaRow}>
+                  <View style={styles.qtyPill}>
+                    <Text style={styles.qtyText}>
+                      Pending ₹ {item.pendingAmount || 0}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.assetType}>{accountType || '—'}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* RIGHT */}
+            <View style={styles.arrowWrap}>
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      rotate: rotateAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0deg', '180deg'],
+                      }),
+                    },
+                  ],
+                }}
               >
-                <Animated.View
-                  style={{
-                    transform: [
-                      {
-                        rotate: expanded ? '180deg' : '0deg',
-                      },
-                    ],
-                  }}
-                >
-                  <Icon name="chevron-down" size={16} color="#111827" />
-                </Animated.View>
-              </TouchableOpacity>
+                <Icon name="chevron-down" size={18} color="#111827" />
+              </Animated.View>
             </View>
           </View>
 
-          {/* ✅ EXPANDED VIEW */}
+          {/* EXPANDED (SAME CARD STYLE) */}
           {expanded && (
             <View style={styles.expandedBox}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Pending Amount</Text>
-                <Text style={styles.detailValue}>
-                  ₹ {item.pendingAmount || 0}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Paid Amount</Text>
-                <Text style={styles.detailValue}>₹ {item.paidAmount || 0}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Pending From Ours</Text>
-                <Text style={styles.detailValue}>
-                  ₹ {item.pendingFromOurs || 0}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Account Type</Text>
-                <Text style={styles.detailValue}>{item.accountType}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Address</Text>
-                <Text style={styles.detailValue}>{item.address}</Text>
-              </View>
+              <Detail
+                label="Pending Amount"
+                value={`₹ ${item.pendingAmount || 0}`}
+              />
+              <Detail label="Paid Amount" value={`₹ ${item.paidAmount || 0}`} />
+              <Detail
+                label="Pending From Ours"
+                value={`₹ ${item.pendingFromOurs || 0}`}
+              />
+              <Detail label="Account Type" value={accountType || '—'} />
+              <Detail label="Address" value={item.address || '—'} />
 
               {item.isEmployee && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Salary</Text>
-                  <Text style={styles.detailValue}>{item.salary}</Text>
-                </View>
+                <Detail label="Salary" value={`₹ ${item.salary || 0}`} />
               )}
 
-              <View style={styles.totalDivider} />
+              <View style={styles.divider} />
 
+              {/* ACTIONS — SAME AS PRODUCT */}
               <View style={styles.editBtnContainer}>
                 <TouchableOpacity
-                  style={styles.editBtnExpanded}
+                  style={styles.editBtn}
                   onPress={() => onEdit(item)}
                 >
-                  <Icon name="create-outline" size={18} color="#ffffffff" />
+                  <Icon name="create-outline" size={16} color="#4338CA" />
                   <Text style={styles.editText}>Edit</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
-                  style={styles.editBtnExpanded}
+                  style={styles.editBtn}
                   onPress={() =>
                     navigation.navigate('Ledger', {
                       client: item,
                     })
                   }
                 >
-                  <Icon name="unlink-outline" size={18} color="#ffffffff" />
+                  <Icon name="link-outline" size={16} color="#4338CA" />
                   <Text style={styles.editText}>Ledger</Text>
                 </TouchableOpacity>
               </View>
@@ -934,6 +961,15 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
     </View>
   );
 };
+
+const Detail = ({ label, value, bold }) => (
+  <View style={styles.detailRow}>
+    <Text style={styles.detailLabel}>{label}</Text>
+    <Text style={[styles.detailValue, bold && { fontWeight: '700' }]}>
+      {value}
+    </Text>
+  </View>
+);
 
 /* ========================================================= */
 /* ========================= STYLES ======================== */
@@ -956,29 +992,179 @@ const styles = StyleSheet.create({
   },
 
   swipeWrapper: {
-    position: 'relative',
+    marginVertical: 6,
   },
 
+  /* DELETE */
   deleteBg: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 0,
-    width: '100%', // ✅ full width but clipped
-    height: 78,
-    backgroundColor: '#DC2626',
-    borderRadius: 18,
-    alignItems: 'flex-end',
+    width: '100%',
+    backgroundColor: '#e13131ff',
+    borderRadius: 22,
     justifyContent: 'center',
-    paddingRight: 50,
-    overflow: 'hidden', // ✅ THIS HIDES IT UNTIL SWIPE
+    alignItems: 'center',
+  },
+
+  deletePill: {
+    position: 'absolute',
+    right: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+    borderRadius: 999,
   },
 
   deleteText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 14,
-    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+
+  /* CARD */
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  leftBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  textBlock: {
+    flex: 1,
+  },
+
+  productTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+
+  qtyPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#EEF2FF',
+  },
+
+  qtyText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4338CA',
+  },
+
+  qtyTextModal: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  assetType: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+
+  arrowWrap: {
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* EXPANDED */
+  expandedBox: {
+    marginTop: 14,
+    padding: 14,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  detailLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+
+  detailValue: {
+    fontSize: 13,
+    color: '#111827',
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+
+  partItem: {
+    fontSize: 12,
+    color: '#374151',
+    marginBottom: 2,
+  },
+
+  editBtn: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+  },
+
+  editText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4338CA',
   },
 
   searchInput: {
@@ -1050,15 +1236,6 @@ const styles = StyleSheet.create({
   actionBox: {
     flexDirection: 'row',
     gap: 10,
-  },
-
-  editBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   fab: {
@@ -1159,11 +1336,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  qtyText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
 
   actionRow: {
@@ -1501,18 +1673,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  productTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-  },
-
-  assetType: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-
   stockBadge: {
     backgroundColor: '#DCFCE7',
     paddingHorizontal: 12,
@@ -1524,31 +1684,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#166534',
-  },
-
-  expandedBox: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 12,
-  },
-
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-
-  detailLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-
-  detailValue: {
-    fontSize: 13,
-    color: '#111827',
-    fontWeight: '700',
   },
 
   totalDivider: {
@@ -1578,12 +1713,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-  },
-
-  editText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
   },
 
   editBtnSecondary: {
@@ -1632,12 +1761,6 @@ const styles = StyleSheet.create({
 
   productInfo: {
     flex: 1,
-  },
-
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
 
   priceBadge: {

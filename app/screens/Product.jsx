@@ -114,9 +114,13 @@ const Product = ({ navigation }) => {
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
 
-  // const clients = ['Client A', 'Client B', 'Client C'];
+  const PAGE_SIZE = 20;
+  const pageRef = useRef(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const abortRef = useRef(null);
+
   const assetTypes = ['Raw Material', 'Finished Goods', 'Assets'];
-  // const parts = ['Main Part', 'Spare Part', 'Accessory'];
 
   useEffect(() => {
     slideAnim.setValue(200);
@@ -310,19 +314,53 @@ const Product = ({ navigation }) => {
     });
   };
 
-  const loadProducts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setRefreshing(true);
-      const res = await api.getAllProducts();
-      setProducts(res.products || res);
-    } catch (err) {
-      console.log('Product fetch error:', err.message);
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  }, [refreshing]);
+  const loadProducts = useCallback(
+    async ({ reset = false } = {}) => {
+      // 🚫 stop duplicate calls
+      if (loadingMore && !reset) return;
+      if (!hasMore && !reset) return;
+
+      // ❌ cancel previous request
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        if (reset) {
+          pageRef.current = 1;
+          setHasMore(true);
+          setRefreshing(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const res = await api.getAllProducts({
+          page: pageRef.current,
+          limit: PAGE_SIZE,
+          signal: controller.signal,
+        });
+
+        const list = res.products || res;
+
+        setProducts(prev => (reset ? list : [...prev, ...list]));
+
+        // ✅ move cursor ONLY after success
+        if (list.length < PAGE_SIZE) {
+          setHasMore(false);
+        } else {
+          pageRef.current += 1; // 🔥 THIS FIXES IT
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.log(err.message);
+        }
+      } finally {
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
+    },
+    [hasMore, loadingMore],
+  );
 
   const handleReset = () => {
     setEditingProduct(null);
@@ -355,9 +393,7 @@ const Product = ({ navigation }) => {
     const taxNum = Number(tax) || 0;
 
     const totalAmountWithoutTax = priceNum * qtyNum;
-
     const taxAmount = (totalAmountWithoutTax * taxNum) / 100;
-
     const totalAmountWithTax = totalAmountWithoutTax + taxAmount;
 
     const productData = {
@@ -477,23 +513,22 @@ const Product = ({ navigation }) => {
 
   useEffect(() => {
     const init = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
+        const clientRes = await api.getAllClients();
+        setClients(clientRes.clients || clientRes);
 
-        await Promise.all([api.getAllClients(), api.getAllProducts()]).then(
-          ([clientRes, productRes]) => {
-            setClients(clientRes.clients || clientRes);
-            setProducts(productRes.products || productRes);
-          },
-        );
-      } catch (err) {
-        console.log('Init load error:', err.message);
+        await loadProducts({ reset: true }); // ✅ page 1
       } finally {
         setLoading(false);
       }
     };
 
     init();
+
+    return () => {
+      abortRef.current?.abort(); // ✅ cleanup
+    };
   }, []);
 
   const openConfirm = useCallback((id, resetFunc) => {
@@ -572,7 +607,25 @@ const Product = ({ navigation }) => {
           keyExtractor={item => item._id.toString()}
           contentContainerStyle={{ padding: 16, paddingBottom: 160 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={loadProducts} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadProducts({ reset: true })}
+            />
+          }
+          onEndReached={() => {
+            if (!loadingMore && hasMore) {
+              loadProducts();
+            }
+          }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ padding: 0 }}>
+                {[1, 2, 3].map(i => (
+                  <SkeletonCard key={i} />
+                ))}
+              </View>
+            ) : null
           }
           renderItem={({ item }) => (
             <SwipeCard
@@ -701,8 +754,12 @@ const Product = ({ navigation }) => {
                     setPickerVisible(true);
                   }}
                 >
-                  <Text style={client ? styles.selectText : styles.placeholder}>
-                    {client || 'Client'}
+                  <Text
+                    style={
+                      editingProduct ? styles.selectText : styles.placeholder
+                    }
+                  >
+                    {editingProduct?.clientName || 'Select Client'}
                   </Text>
                 </TouchableOpacity>
 
@@ -786,7 +843,7 @@ const Product = ({ navigation }) => {
                     <Icon name="remove" size={18} />
                   </TouchableOpacity>
 
-                  <Text style={styles.qtyText}>{qty || 0}</Text>
+                  <Text style={styles.qtyTextModal}>{qty || 0}</Text>
 
                   <TouchableOpacity
                     style={styles.stepBtn}
@@ -964,12 +1021,20 @@ const Product = ({ navigation }) => {
                         style={styles.optionRowPicker}
                         onPress={() => {
                           if (pickerType === 'client') {
-                            setClient(item.clientName);
+                            setClient(
+                              typeof item.clientName === 'object'
+                                ? item.clientName.clientName
+                                : item.clientName || '',
+                            );
                             setClientId(item._id);
                           }
 
                           if (pickerType === 'asset') {
-                            setAssetType(item);
+                            setAssetType(
+                              typeof item.assetType === 'object'
+                                ? item.assetType.name || item.assetType.label
+                                : item.assetType || '',
+                            );
                           }
 
                           if (pickerType === 'machinePart') {
@@ -1114,24 +1179,50 @@ export default Product;
 /* ===================== SWIPE CARD ======================== */
 /* ========================================================= */
 
-const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
+const getProductIcon = type => {
+  switch (type) {
+    case 'MACHINE':
+      return 'settings-outline';
+    case 'RAW':
+      return 'cube-outline';
+    case 'SERVICE':
+      return 'construct-outline';
+    default:
+      return 'pricetag-outline';
+  }
+};
+
+const SwipeCard = ({ item, onEdit, openConfirm }) => {
   const translateX = useRef(new Animated.Value(0)).current;
-  const expandAnim = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
+
+  /* ---------------- EXPAND / COLLAPSE ---------------- */
+
+  console.log('item', item);
 
   const toggleExpand = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(prev => !prev);
   };
 
+  useEffect(() => {
+    Animated.spring(rotateAnim, {
+      toValue: expanded ? 1 : 0,
+      useNativeDriver: true,
+    }).start();
+  }, [expanded]);
+
+  /* ---------------- DELETE ANIMATIONS ---------------- */
+
   const deleteTranslate = translateX.interpolate({
-    inputRange: [-160, 0],
-    outputRange: [0, 140],
+    inputRange: [-120, 0],
+    outputRange: [0, 100],
     extrapolate: 'clamp',
   });
 
   const deleteOpacity = translateX.interpolate({
-    inputRange: [-140, -60],
+    inputRange: [-100, -40],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
@@ -1143,20 +1234,22 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
     }).start();
   };
 
+  /* ---------------- PAN RESPONDER ---------------- */
+
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 15,
 
       onPanResponderMove: (_, g) => {
         if (g.dx < 0) {
-          translateX.setValue(Math.max(g.dx, -160));
+          translateX.setValue(Math.max(g.dx, -120));
         }
       },
 
       onPanResponderRelease: (_, g) => {
-        if (g.dx < -110) {
+        if (g.dx < -90) {
           Animated.spring(translateX, {
-            toValue: -140,
+            toValue: -100,
             speed: 20,
             bounciness: 0,
             useNativeDriver: true,
@@ -1170,127 +1263,120 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
     }),
   ).current;
 
+  /* ---------------- RENDER ---------------- */
+
   return (
     <View style={styles.swipeWrapper}>
+      {/* DELETE BACKGROUND */}
       <View style={styles.deleteBg}>
         <Animated.View
-          style={{
-            transform: [{ translateX: deleteTranslate }],
-            opacity: deleteOpacity,
-          }}
+          style={[
+            styles.deletePill,
+            {
+              transform: [{ translateX: deleteTranslate }],
+              opacity: deleteOpacity,
+            },
+          ]}
         >
-          <Text style={styles.deleteText}>Delete</Text>
+          <Icon name="trash-outline" size={18} color="#DC2626" />
+          {/* <Text style={styles.deleteText}>Delete</Text> */}
         </Animated.View>
       </View>
 
+      {/* MAIN CARD */}
       <Animated.View
-        style={[styles.productCardCollapsed, { transform: [{ translateX }] }]}
+        style={[styles.card, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={toggleExpand}
-          style={{ flex: 1 }}
-        >
-          {/* ✅ COLLAPSED VIEW */}
-          <View style={styles.collapsedRow}>
-            <View>
-              <Text numberOfLines={1} style={styles.productTitle}>
-                {item.productName}
-              </Text>
-              <Text style={styles.assetType}>{item.assetType}</Text>
-            </View>
-
-            <View
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: 10,
-              }}
-            >
-              <View style={styles.stockBadge}>
-                <Text style={styles.stockText}>
-                  Stock: {item.productQuantity}
-                </Text>
+        <TouchableOpacity activeOpacity={0.9} onPress={toggleExpand}>
+          {/* COLLAPSED ROW */}
+          <View style={styles.row}>
+            {/* LEFT */}
+            <View style={styles.leftBlock}>
+              <View style={styles.iconCircle}>
+                <Icon
+                  name={getProductIcon(item.assetType)}
+                  size={18}
+                  color="#fff"
+                />
               </View>
 
-              <TouchableOpacity
-                onPress={toggleExpand}
-                activeOpacity={0.7}
-                style={styles.arrowBtn}
+              <View style={styles.textBlock}>
+                <Text style={styles.productTitle}>{item.productName}</Text>
+
+                <View style={styles.metaRow}>
+                  <View style={styles.qtyPill}>
+                    <Text style={styles.qtyText}>
+                      Stock {item.productQuantity}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.assetType}>
+                    {' '}
+                    {typeof item.assetType === 'object'
+                      ? item.assetType?.name || item.assetType?.label
+                      : item.assetType}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* RIGHT */}
+            <View style={styles.arrowWrap}>
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      rotate: rotateAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0deg', '180deg'],
+                      }),
+                    },
+                  ],
+                }}
               >
-                <Animated.View
-                  style={{
-                    transform: [
-                      {
-                        rotate: expanded ? '180deg' : '0deg', // ✅ rotate arrow
-                      },
-                    ],
-                  }}
-                >
-                  <Icon name="chevron-down" size={16} color="#111827" />
-                </Animated.View>
-              </TouchableOpacity>
+                <Icon name="chevron-down" size={18} color="#111827" />
+              </Animated.View>
             </View>
           </View>
 
-          {/* ✅ EXPANDED VIEW */}
+          {/* EXPANDED CONTENT */}
           {expanded && (
             <View style={styles.expandedBox}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Price(AVG)</Text>
-                <Text style={styles.detailValue}>₹ {item.productPrice}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Client</Text>
-                <Text style={styles.detailValue}>{item.clientName || '—'}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Sale HSN</Text>
-                <Text style={styles.detailValue}>{item.saleHSN || '—'}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Purchase HSN</Text>
-                <Text style={styles.detailValue}>
-                  {item.purchaseHSN || '—'}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Tax</Text>
-                <Text style={styles.detailValue}>{item.taxRate}%</Text>
-              </View>
+              <Detail label="Price (AVG)" value={`₹ ${item.productPrice}`} />
+              <Detail label="Client" value={item.clientName || '—'} />
+              <Detail label="Sale HSN" value={item.saleHSN || '—'} />
+              <Detail label="Purchase HSN" value={item.purchaseHSN || '—'} />
+              <Detail label="Tax" value={`${item.taxRate}%`} />
 
               {item.type === 'MACHINE' && (
-                <View>
-                  <Text style={{ fontWeight: 'bold' }}>Machine Parts</Text>
+                <View style={{ marginTop: 10 }}>
+                  <Text style={styles.sectionTitle}>Machine Parts</Text>
                   {item.parts.map(p => (
-                    <Text key={p.productId}>
-                      • {p.productName} × {p.qtyPerMachine}
+                    <Text key={p.productId} style={styles.partItem}>
+                      •{' '}
+                      {typeof p.productName === 'object'
+                        ? p.productName.productName
+                        : p.productName}
+                      × {p.qtyPerMachine}
                     </Text>
                   ))}
                 </View>
               )}
 
-              <View style={styles.totalDivider} />
+              <View style={styles.divider} />
 
-              <View style={styles.detailRow}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>
-                  ₹ {item.totalAmountWithTax}
-                </Text>
-              </View>
+              <Detail
+                label="Total"
+                value={`₹ ${item.totalAmountWithTax}`}
+                bold
+              />
 
               <TouchableOpacity
-                style={styles.editBtnExpanded}
+                style={styles.editBtn}
                 onPress={() => onEdit(item)}
               >
-                <Icon name="create-outline" size={18} />
+                <Icon name="create-outline" size={16} color="#4338CA" />
                 <Text style={styles.editText}>Edit</Text>
               </TouchableOpacity>
             </View>
@@ -1300,6 +1386,17 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
     </View>
   );
 };
+
+/* ---------------- HELPER COMPONENT ---------------- */
+
+const Detail = ({ label, value, bold }) => (
+  <View style={styles.detailRow}>
+    <Text style={styles.detailLabel}>{label}</Text>
+    <Text style={[styles.detailValue, bold && { fontWeight: '700' }]}>
+      {value}
+    </Text>
+  </View>
+);
 
 /* ========================================================= */
 /* ========================= STYLES ======================== */
@@ -1329,29 +1426,179 @@ const styles = StyleSheet.create({
   },
 
   swipeWrapper: {
-    position: 'relative',
+    marginVertical: 6,
   },
 
+  /* DELETE */
   deleteBg: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 0,
-    width: '100%', // ✅ full width but clipped
-    height: 78,
-    backgroundColor: '#DC2626',
-    borderRadius: 18,
-    alignItems: 'flex-end',
+    width: '100%',
+    backgroundColor: '#e13131ff',
+    borderRadius: 22,
     justifyContent: 'center',
-    paddingRight: 50,
-    overflow: 'hidden', // ✅ THIS HIDES IT UNTIL SWIPE
+    alignItems: 'center',
+  },
+
+  deletePill: {
+    position: 'absolute',
+    right: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+    borderRadius: 999,
   },
 
   deleteText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 14,
-    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+
+  /* CARD */
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  leftBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  textBlock: {
+    flex: 1,
+  },
+
+  productTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+
+  qtyPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#EEF2FF',
+  },
+
+  qtyText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4338CA',
+  },
+
+  qtyTextModal: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  assetType: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+
+  arrowWrap: {
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* EXPANDED */
+  expandedBox: {
+    marginTop: 14,
+    padding: 14,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  detailLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+
+  detailValue: {
+    fontSize: 13,
+    color: '#111827',
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+
+  partItem: {
+    fontSize: 12,
+    color: '#374151',
+    marginBottom: 2,
+  },
+
+  editBtn: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+  },
+
+  editText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4338CA',
   },
 
   searchInput: {
@@ -1423,15 +1670,6 @@ const styles = StyleSheet.create({
   actionBox: {
     flexDirection: 'row',
     gap: 10,
-  },
-
-  editBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   fab: {
@@ -1532,11 +1770,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  qtyText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
 
   actionRow: {
@@ -1867,18 +2100,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  productTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-  },
-
-  assetType: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-
   stockBadge: {
     backgroundColor: '#DCFCE7',
     paddingHorizontal: 12,
@@ -1913,31 +2134,6 @@ const styles = StyleSheet.create({
     color: '#166534',
   },
 
-  expandedBox: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 12,
-  },
-
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-
-  detailLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-
-  detailValue: {
-    fontSize: 13,
-    color: '#111827',
-    fontWeight: '700',
-  },
-
   totalDivider: {
     height: 1,
     backgroundColor: '#E5E7EB',
@@ -1965,11 +2161,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     gap: 6,
-  },
-
-  editText: {
-    color: '#fff',
-    fontWeight: '700',
   },
 
   /* ===================== NEW PRODUCT LIST UI ===================== */
@@ -2009,12 +2200,6 @@ const styles = StyleSheet.create({
 
   productInfo: {
     flex: 1,
-  },
-
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
 
   priceBadge: {
