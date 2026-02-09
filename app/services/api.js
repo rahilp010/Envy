@@ -177,9 +177,18 @@ const api = {
         }
     },
 
-    getAllProducts: async ({ page = 1, limit = 20, signal } = {}) => {
+    getAllProducts: async ({ page = 1, limit = 20, search = '', signal } = {}) => {
         try {
-            const response = await fetch(`${API_URL}/products?page=${page}&limit=${limit}`, {
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit),
+            });
+
+            if (search) {
+                params.append('search', search);
+            }
+
+            const response = await fetch(`${API_URL}/products?${params.toString()}`, {
                 headers: await getAuthHeaders(),
                 signal
             });
@@ -258,15 +267,42 @@ const api = {
         }
     },
 
-    getAllClients: async () => {
+    getAllClients: async ({
+        page = 1,
+        limit = 20,
+        search = '',
+        signal,
+    } = {}) => {
         try {
-            const response = await fetch(`${API_URL}/clients`, { headers: await getAuthHeaders(), });
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit),
+            });
+
+            if (search) {
+                params.append('search', search);
+            }
+
+            const response = await fetch(
+                `${API_URL}/clients?${params.toString()}`,
+                {
+                    headers: await getAuthHeaders(),
+                    signal,
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch clients');
+            }
+
             return await response.json();
         } catch (error) {
+            if (error.name === 'AbortError') {
+                return { clients: [] }; // ✅ safe abort
+            }
             throw new Error('Network error: ' + error.message);
         }
     },
-
 
     //Purchase
 

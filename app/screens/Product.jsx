@@ -28,6 +28,7 @@ import { pick } from '@react-native-documents/picker';
 import RNBlobUtil from 'react-native-blob-util';
 import ImportCsv from '../utility/ImportCsv';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { hide } from 'react-native-bootsplash';
 
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -119,6 +120,9 @@ const Product = ({ navigation }) => {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const abortRef = useRef(null);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const assetTypes = ['Raw Material', 'Finished Goods', 'Assets'];
 
@@ -472,6 +476,34 @@ const Product = ({ navigation }) => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    Alert.alert(
+      'Delete Products',
+      `Delete ${selectedIds.length} selected products?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await Promise.all(selectedIds.map(id => api.deleteProduct(id)));
+
+              setProducts(prev =>
+                prev.filter(p => !selectedIds.includes(p._id)),
+              );
+
+              clearSelection();
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleEdit = item => {
     setEditingProduct(item);
 
@@ -545,9 +577,44 @@ const Product = ({ navigation }) => {
   const liveTaxAmount = (liveSubTotal * liveTax) / 100;
   const liveGrandTotal = liveSubTotal + liveTaxAmount;
 
+  const toggleSelect = id => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    );
+  };
+
+  const selectAll = () => {
+    setSelectedIds(filteredProducts.map(p => p._id));
+  };
+
+  const clearSelection = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
   return (
     <View style={styles.container}>
       <Navbar title="Products" onSearch={openSearch} onFilter={openFilter} />
+
+      {selectionMode && (
+        <View style={styles.bulkBar}>
+          <TouchableOpacity onPress={selectAll}>
+            <Text style={styles.bulkText}>Select All</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.bulkCount}>{selectedIds.length} selected</Text>
+
+          <View style={{ flexDirection: 'row', gap: 14 }}>
+            <TouchableOpacity onPress={clearSelection}>
+              <Icon name="close" size={22} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleBulkDelete}>
+              <Icon name="trash-outline" size={22} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* ✅ SEARCH BAR */}
       {showSearch && (
@@ -630,7 +697,14 @@ const Product = ({ navigation }) => {
           renderItem={({ item }) => (
             <SwipeCard
               item={item}
-              onDelete={handleDelete}
+              selectionMode={selectionMode}
+              isSelected={selectedIds.includes(item._id)}
+              onSelect={toggleSelect}
+              onLongPress={id => {
+                setSelectionMode(true);
+                setSelectedIds([id]);
+              }}
+              // onDelete={handleDelete}
               onEdit={handleEdit}
               openConfirm={openConfirm}
             />
@@ -1192,19 +1266,40 @@ const getProductIcon = type => {
   }
 };
 
-const SwipeCard = ({ item, onEdit, openConfirm }) => {
+const SwipeCard = ({
+  item,
+  onEdit,
+  openConfirm,
+  selectionMode,
+  isSelected,
+  onSelect,
+  onLongPress,
+}) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const expandAnim = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
 
   /* ---------------- EXPAND / COLLAPSE ---------------- */
 
-  console.log('item', item);
-
   const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    Animated.timing(expandAnim, {
+      toValue: expanded ? 0 : 1,
+      duration: 260,
+      useNativeDriver: false,
+    }).start();
     setExpanded(prev => !prev);
   };
+
+  const expandedHeight = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 270],
+  });
+
+  const chevronRotate = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
 
   useEffect(() => {
     Animated.spring(rotateAnim, {
@@ -1255,9 +1350,17 @@ const SwipeCard = ({ item, onEdit, openConfirm }) => {
             useNativeDriver: true,
           }).start();
 
-          openConfirm(item._id, resetPosition);
+          openConfirm(item._id, () =>
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start(),
+          );
         } else {
-          resetPosition();
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
         }
       },
     }),
@@ -1286,9 +1389,35 @@ const SwipeCard = ({ item, onEdit, openConfirm }) => {
       {/* MAIN CARD */}
       <Animated.View
         style={[styles.card, { transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
+        {...(!selectionMode ? panResponder.panHandlers : {})}
       >
-        <TouchableOpacity activeOpacity={0.9} onPress={toggleExpand}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            if (selectionMode) {
+              onSelect(item._id);
+            } else {
+              toggleExpand();
+            }
+          }}
+          onLongPress={() => {
+            if (!selectionMode) {
+              onLongPress(item._id);
+            }
+          }}
+        >
+          {selectionMode && (
+            <View style={styles.checkWrap}>
+              <View
+                style={[
+                  styles.checkCircle,
+                  isSelected && styles.checkCircleActive,
+                ]}
+              >
+                {isSelected && <Icon name="checkmark" size={14} color="#fff" />}
+              </View>
+            </View>
+          )}
           {/* COLLAPSED ROW */}
           <View style={styles.row}>
             {/* LEFT */}
@@ -1303,45 +1432,51 @@ const SwipeCard = ({ item, onEdit, openConfirm }) => {
 
               <View style={styles.textBlock}>
                 <Text style={styles.productTitle}>{item.productName}</Text>
-
                 <View style={styles.metaRow}>
-                  <View style={styles.qtyPill}>
-                    <Text style={styles.qtyText}>
-                      Stock {item.productQuantity}
+                  <View style={styles.assetPill}>
+                    <Text style={styles.assetText}>
+                      {typeof item.assetType === 'object'
+                        ? item.assetType?.name || item.assetType?.label
+                        : item.assetType}
                     </Text>
                   </View>
-
-                  <Text style={styles.assetType}>
-                    {' '}
-                    {typeof item.assetType === 'object'
-                      ? item.assetType?.name || item.assetType?.label
-                      : item.assetType}
-                  </Text>
+                  <View style={styles.qtyPill}>
+                    <Text style={styles.qtyText}>
+                      Stock : {item.productQuantity}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
 
             {/* RIGHT */}
             <View style={styles.arrowWrap}>
-              <Animated.View
-                style={{
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '180deg'],
-                      }),
-                    },
-                  ],
-                }}
-              >
-                <Icon name="chevron-down" size={18} color="#111827" />
-              </Animated.View>
+              {!selectionMode && (
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        rotate: rotateAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '180deg'],
+                        }),
+                      },
+                    ],
+                  }}
+                >
+                  <Icon name="chevron-down" size={18} color="#111827" />
+                </Animated.View>
+              )}
             </View>
           </View>
 
           {/* EXPANDED CONTENT */}
-          {expanded && (
+          <Animated.View
+            style={[
+              styles.expandContainer,
+              { height: expandedHeight, overflow: 'hidden' },
+            ]}
+          >
             <View style={styles.expandedBox}>
               <Detail label="Price (AVG)" value={`₹ ${item.productPrice}`} />
               <Detail label="Client" value={item.clientName || '—'} />
@@ -1380,7 +1515,7 @@ const SwipeCard = ({ item, onEdit, openConfirm }) => {
                 <Text style={styles.editText}>Edit</Text>
               </TouchableOpacity>
             </View>
-          )}
+          </Animated.View>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -1514,10 +1649,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#eeffeeff',
   },
 
   qtyText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#319506ff',
+  },
+
+  assetPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#EEF2FF',
+  },
+
+  assetText: {
     fontSize: 11,
     fontWeight: '600',
     color: '#4338CA',
@@ -2408,5 +2556,48 @@ const styles = StyleSheet.create({
   optionTextPicker: {
     fontSize: 15,
     color: '#111827',
+  },
+
+  bulkBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 56,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  bulkText: {
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+
+  bulkCount: {
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+  checkWrap: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#9CA3AF',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  checkCircleActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
   },
 });

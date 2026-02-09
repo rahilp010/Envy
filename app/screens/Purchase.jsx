@@ -38,6 +38,16 @@ import Cash from '../../assets/cash.svg';
 import Gpay from '../../assets/googlepay.svg';
 import Idbi from '../../assets/IDBIBank.svg';
 
+const getTextValue = val => {
+  if (typeof val === 'string' || typeof val === 'number') {
+    return String(val);
+  }
+  if (val && typeof val === 'object') {
+    return val.name || val.label || val.clientName || val.productName || '';
+  }
+  return '';
+};
+
 const SkeletonCard = () => {
   const shimmer = useRef(new Animated.Value(0)).current;
 
@@ -191,6 +201,13 @@ const Purchase = ({ navigation }) => {
   const [totalAmount, setTotalAmount] = useState();
   const [paymentList, setPaymentList] = useState([]);
 
+  const PICKER_PAGE_SIZE = 20;
+
+  const [pickerData, setPickerData] = useState([]);
+  const [pickerPage, setPickerPage] = useState(1);
+  const [pickerHasMore, setPickerHasMore] = useState(true);
+  const [pickerLoading, setPickerLoading] = useState(false);
+
   const normalizeArray = data => (Array.isArray(data) ? data : []);
 
   useEffect(() => {
@@ -204,30 +221,94 @@ const Purchase = ({ navigation }) => {
   });
 
   useEffect(() => {
+    if (!pickerVisible || !pickerType) return;
+
+    setPickerPage(1);
+    setPickerHasMore(true);
+    setPickerData([]);
+
+    const timeout = setTimeout(() => {
+      loadPickerData({ reset: true });
+    }, 300); // debounce search
+
+    return () => clearTimeout(timeout);
+  }, [pickerType, pickerSearch]);
+
+  const loadPickerData = async ({ reset = false } = {}) => {
+    if (pickerLoading) return;
+    if (!pickerHasMore && !reset) return;
+
+    try {
+      setPickerLoading(true);
+
+      const page = reset ? 1 : pickerPage;
+      if (reset) {
+        setPickerPage(1);
+      }
+
+      let res;
+
+      if (pickerType === 'product' || pickerType === 'filterProduct') {
+        res = await api.getAllProducts({
+          page,
+          limit: PICKER_PAGE_SIZE,
+          search: pickerSearch,
+        });
+      }
+
+      if (pickerType === 'client' || pickerType === 'filterClient') {
+        res = await api.getAllClients({
+          page,
+          limit: PICKER_PAGE_SIZE,
+          search: pickerSearch,
+        });
+      }
+
+      if (pickerType === 'tax') {
+        setPickerData(['5', '12', '18', '28']);
+        setPickerHasMore(false);
+        return;
+      }
+
+      let list = res?.products || res?.clients || [];
+
+      /* 🚫 REMOVE SYSTEM ACCOUNTS (CLIENT PICKER ONLY) */
+      if (pickerType === 'client' || pickerType === 'filterClient') {
+        list = list.filter(
+          i =>
+            i?.clientName &&
+            !SYSTEM_ACCOUNTS.includes(i.clientName.toLowerCase()),
+        );
+      }
+
+      setPickerData(prev => {
+        const combined = reset ? list : [...prev, ...list];
+
+        const uniqueMap = new Map();
+        combined.forEach(item => {
+          if (item?._id) {
+            uniqueMap.set(item._id, item);
+          }
+        });
+
+        return Array.from(uniqueMap.values());
+      });
+
+      if (list.length < PICKER_PAGE_SIZE) {
+        setPickerHasMore(false);
+      } else {
+        setPickerPage(page + 1);
+      }
+    } catch (err) {
+      console.log('Picker pagination error:', err.message);
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (!pickerVisible) setPickerSearch('');
   }, [pickerVisible]);
-
-  const getPickerData = () => {
-    let data = [];
-
-    if (pickerType === 'client' || pickerType === 'filterClient') {
-      data = clients.filter(
-        i => !SYSTEM_ACCOUNTS.includes(i.clientName.toLowerCase()),
-      );
-    } else if (pickerType === 'product') {
-      data = products || [];
-    } else if (pickerType === 'tax') {
-      data = ['5', '12', '18', '28'];
-    }
-
-    if (!pickerSearch) return data;
-
-    return data.filter(item => {
-      const label = item.clientName || item.productName || item.toString();
-
-      return label?.toLowerCase().includes(pickerSearch.toLowerCase());
-    });
-  };
 
   const scrollToError = fieldName => {
     const y = fieldPositions.current[fieldName];
@@ -247,11 +328,11 @@ const Purchase = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    api.getAllAccounts().then(res => {
-      setAccounts(res.accounts || res);
-    });
-  }, []);
+  // useEffect(() => {
+  //   api.getAllAccounts().then(res => {
+  //     setAccounts(res.accounts || res);
+  //   });
+  // }, []);
 
   // Calculate totals dynamically
   const subTotal = Number(purchasePrice || 0) * Number(quantity || 0);
@@ -402,7 +483,6 @@ const Purchase = ({ navigation }) => {
   };
 
   const handleSubmit = async (finalPayments = paymentList) => {
-    debugger;
     let newErrors = {};
     if (!clientName.trim()) newErrors.clientName = true;
     if (!productName.trim()) newErrors.productName = true;
@@ -1259,80 +1339,114 @@ const Purchase = ({ navigation }) => {
                     autoFocus
                   />
                 </View>
-                <ScrollView
+                <FlatList
+                  data={pickerData}
+                  keyExtractor={(item, index) => item._id || index.toString()}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
-                >
-                  {getPickerData().length === 0 ? (
-                    <Text style={styles.placeholderPicker}>No data found</Text>
-                  ) : (
-                    getPickerData().map(item => (
-                      <TouchableOpacity
-                        key={item._id || item}
-                        style={styles.optionRowPicker}
-                        onPress={() => {
-                          if (pickerType === 'client') {
-                            setClientName(item.clientName);
-                            setClientId(item._id);
-                          }
-
-                          if (pickerType === 'filterClient') {
-                            setFilterClientName(item.clientName);
-                            setFilterClientId(item._id);
-                          }
-
-                          if (pickerType === 'product') {
-                            setProductName(item.productName);
-                            setProductId(item._id);
-                            setProductPrice(item.saleAmount || '');
-                            setSelectedProductStock(item.productQuantity || 0);
-                          }
-
-                          if (pickerType === 'tax') {
-                            setTaxRate(item);
-                          }
-
-                          setPickerVisible(false);
+                  onEndReached={() => {
+                    if (!pickerLoading && pickerHasMore) {
+                      loadPickerData();
+                    }
+                  }}
+                  onEndReachedThreshold={0.5}
+                  ListEmptyComponent={
+                    !pickerLoading && (
+                      <Text style={styles.placeholderPicker}>
+                        No data found
+                      </Text>
+                    )
+                  }
+                  ListFooterComponent={
+                    pickerLoading ? (
+                      <View style={{ paddingVertical: 12 }}>
+                        <Loading />
+                      </View>
+                    ) : !pickerHasMore && pickerData.length < 0 ? (
+                      <Text
+                        style={{
+                          textAlign: 'center',
+                          color: '#9CA3AF',
+                          paddingVertical: 10,
+                          fontSize: 12,
                         }}
                       >
-                        <View style={styles.optionRowContent}>
-                          <Text style={styles.optionTextPicker}>
-                            {item.clientName || item.productName || `${item}%`}
-                          </Text>
+                        No more results
+                      </Text>
+                    ) : null
+                  }
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.optionRowPicker}
+                      disabled={
+                        pickerType === 'product' &&
+                        (item.productQuantity || 0) <= 0
+                      }
+                      onPress={() => {
+                        if (pickerType === 'client') {
+                          setClientName(getTextValue(item.clientName));
+                          setClientId(item._id);
+                        }
 
-                          {/* PRODUCT QUANTITY BADGE */}
-                          {pickerType === 'product' && (
-                            <View
+                        if (pickerType === 'product') {
+                          setProductName(item.productName);
+                          setProductId(item._id);
+                          setSelectedProductStock(item.productQuantity || 0);
+                        }
+
+                        if (pickerType === 'filterClient') {
+                          setFilterClientName(item.clientName);
+                          setFilterClientId(item._id);
+                        }
+
+                        setPickerVisible(false);
+                        setPickerType('');
+                        setPickerSearch('');
+                      }}
+                    >
+                      <View style={styles.optionRowContent}>
+                        <Text style={styles.optionTextPicker}>
+                          {getTextValue(
+                            pickerType.includes('client')
+                              ? item.clientName
+                              : pickerType.includes('product')
+                              ? item.productName
+                              : item,
+                          )}
+                        </Text>
+
+                        {/* OPTIONAL STOCK BADGE */}
+                        {pickerType === 'product' && (
+                          <View
+                            style={[
+                              styles.qtyBadge,
+                              {
+                                backgroundColor:
+                                  (item.productQuantity || 0) > 0
+                                    ? '#DCFCE7'
+                                    : '#FEE2E2',
+                              },
+                            ]}
+                          >
+                            <Text
                               style={[
-                                styles.qtyBadge,
+                                styles.qtyTextPicker,
                                 {
-                                  backgroundColor:
+                                  color:
                                     (item.productQuantity || 0) > 0
-                                      ? '#DCFCE7'
-                                      : '#FEE2E2',
+                                      ? '#166534'
+                                      : '#991B1B',
                                 },
                               ]}
                             >
-                              <Text
-                                style={[
-                                  styles.qtyTextPicker,
-                                  {
-                                    color:
-                                      (item.productQuantity || 0) > 0
-                                        ? '#166534'
-                                        : '#991B1B',
-                                  },
-                                ]}
-                              >
-                                {item.productQuantity || 0}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    ))
+                              {item.productQuantity || 0}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
                   )}
-                </ScrollView>
+                />
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -1399,7 +1513,7 @@ const Purchase = ({ navigation }) => {
             <Text
               style={filterClientName ? styles.selectText : styles.placeholder}
             >
-              {filterClientName || 'Select Client'}
+              {getTextValue(filterClientName) || 'Select Client'}
             </Text>
           </TouchableOpacity>
 
@@ -1477,15 +1591,17 @@ export default Purchase;
 /* ===================== SWIPE CARD ======================== */
 /* ========================================================= */
 
-const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
+const SwipeCard = ({ item, onEdit, openConfirm }) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const expandAnim = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
 
+  /* ---------------- EXPAND ---------------- */
+
   const toggleExpand = () => {
     Animated.timing(expandAnim, {
       toValue: expanded ? 0 : 1,
-      duration: 250,
+      duration: 260,
       useNativeDriver: false,
     }).start();
     setExpanded(prev => !prev);
@@ -1493,13 +1609,34 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
 
   const expandedHeight = expandAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 260],
+    outputRange: [0, 240],
   });
 
   const chevronRotate = expandAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
   });
+
+  const deleteTranslate = translateX.interpolate({
+    inputRange: [-120, 0],
+    outputRange: [0, 100],
+    extrapolate: 'clamp',
+  });
+
+  const deleteOpacity = translateX.interpolate({
+    inputRange: [-100, -40],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const resetPosition = () => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  /* ---------------- STATUS ---------------- */
 
   const statusColor = {
     completed: '#16A34A',
@@ -1508,18 +1645,24 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
   }[item.statusOfTransaction || 'pending'];
 
   /* ---------------- SWIPE DELETE ---------------- */
+
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 15,
+
       onPanResponderMove: (_, g) => {
-        if (g.dx < 0) translateX.setValue(Math.max(g.dx, -140));
+        if (g.dx < 0) translateX.setValue(Math.max(g.dx, -120));
       },
+
       onPanResponderRelease: (_, g) => {
-        if (g.dx < -100) {
+        if (g.dx < -90) {
           Animated.spring(translateX, {
-            toValue: -140,
+            toValue: -110,
+            speed: 20,
+            bounciness: 0,
             useNativeDriver: true,
           }).start();
+
           openConfirm(item._id, () =>
             Animated.spring(translateX, {
               toValue: 0,
@@ -1536,79 +1679,110 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
     }),
   ).current;
 
+  /* ---------------- SAFE VALUES ---------------- */
+
+  const clientName =
+    getTextValue(item?.clientId?.clientName) || 'Unknown Client';
+  const productName =
+    getTextValue(item?.productId?.productName) || 'General Purchase';
+
+  /* ---------------- RENDER ---------------- */
+
   return (
     <View style={styles.swipeWrapper}>
-      {/* DELETE BACKGROUND */}
+      {/* DELETE BG — SAME AS PRODUCT */}
       <View style={styles.deleteBg}>
-        <Icon name="trash-outline" size={20} color="#fff" />
-        <Text style={styles.deleteText}>Delete</Text>
+        <Animated.View
+          style={[
+            styles.deletePill,
+            {
+              transform: [{ translateX: deleteTranslate }],
+              opacity: deleteOpacity,
+            },
+          ]}
+        >
+          <Icon name="trash-outline" size={18} color="#DC2626" />
+        </Animated.View>
       </View>
 
+      {/* CARD */}
       <Animated.View
-        style={[styles.productCardCollapsed, { transform: [{ translateX }] }]}
+        style={[styles.card, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
         <TouchableOpacity activeOpacity={0.9} onPress={toggleExpand}>
-          {/* ---------------- COLLAPSED ---------------- */}
-          <View style={styles.collapsedRow}>
-            <View style={{ flex: 1 }}>
-              {/* CLIENT */}
-              <Text numberOfLines={1} style={styles.clientTitle}>
-                {item?.clientId?.clientName || 'Unknown Client'}
-              </Text>
+          {/* COLLAPSED — SAME STRUCTURE */}
+          <View style={styles.row}>
+            {/* LEFT */}
+            <View style={styles.leftBlock}>
+              <View style={styles.iconCircle}>
+                <Icon name="cart-outline" size={18} color="#fff" />
+              </View>
 
-              {/* PRODUCT */}
-              <Text numberOfLines={1} style={styles.productTitleSmall}>
-                {item?.productId?.productName || 'General Purchase'}
-              </Text>
+              <View style={styles.textBlock}>
+                {/* 1️⃣ CLIENT NAME */}
+                <Text numberOfLines={1} style={styles.productTitle}>
+                  {clientName}
+                </Text>
 
-              {/* DATE + QTY */}
-              <Text style={styles.billRow}>
-                {new Date(item.date).toLocaleDateString('en-IN', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })}{' '}
-                • Qty {item.quantity}
-              </Text>
-
-              {/* ✅ STATUS — NEW LINE + FIT CONTENT */}
-              <View style={styles.statusRow}>
-                <View
-                  style={[
-                    styles.statusPill,
-                    { backgroundColor: statusColor + '20' },
-                  ]}
-                >
-                  <Text style={[styles.statusText, { color: statusColor }]}>
-                    {item.statusOfTransaction}
+                {/* 2️⃣ PRODUCT + STATUS */}
+                <View style={styles.metaRow}>
+                  <Text numberOfLines={1} style={styles.assetType}>
+                    {productName}
                   </Text>
                 </View>
-                <View style={styles.paymentMethod}>
-                  {item.paymentMethod === 'cash' ? (
-                    <Cash width={20} height={21} />
-                  ) : item.paymentMethod === 'bank' ? (
-                    <Gpay width={18} height={22} />
-                  ) : (
-                    <Idbi width={22} height={20} />
-                  )}
+
+                {/* 3️⃣ DATE + QTY */}
+                <Text style={styles.subMeta}>
+                  {new Date(item.date).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })}{' '}
+                  • Qty {item.quantity}
+                </Text>
+
+                <View style={styles.amountMain}>
+                  <Text style={styles.amountHero} numberOfLines={1}>
+                    ₹{item.totalAmountWithTax?.toFixed(2) || 0}
+                  </Text>
+                  <View style={styles.paymentMethod}>
+                    {item.paymentMethod === 'cash' ? (
+                      <Cash width={20} height={21} />
+                    ) : item.paymentMethod === 'bank' ? (
+                      <Gpay width={16} height={18} />
+                    ) : (
+                      <Idbi width={22} height={20} />
+                    )}
+                  </View>
+                  <View
+                    style={[
+                      styles.qtyPill,
+                      { backgroundColor: statusColor + '20' },
+                    ]}
+                  >
+                    <Text style={[styles.qtyText, { color: statusColor }]}>
+                      {item.statusOfTransaction}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
 
-            {/* RIGHT SIDE */}
+            {/* RIGHT */}
             <View style={styles.rightCol}>
-              <Text style={styles.amountText}>
-                ₹{item.totalAmountWithTax?.toFixed(2) || 0}
-              </Text>
-
-              <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
-                <Icon name="chevron-down" size={18} color="#6B7280" />
+              <Animated.View
+                style={[
+                  styles.arrowBox,
+                  { transform: [{ rotate: chevronRotate }] },
+                ]}
+              >
+                <Icon name="chevron-down" size={18} color="#9CA3AF" />
               </Animated.View>
             </View>
           </View>
 
-          {/* ---------------- EXPANDED ---------------- */}
+          {/* EXPANDED — SAME CONTAINER STYLE */}
           <Animated.View style={{ height: expandedHeight, overflow: 'hidden' }}>
             <View style={styles.expandedBox}>
               {[
@@ -1631,23 +1805,13 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm }) => {
                 </View>
               ))}
 
-              <View style={styles.detailRow}>
-                <View style={styles.detailLeft}>
-                  <Icon name="calendar-outline" size={16} color="#6B7280" />
-                  <Text style={styles.detailLabel}>Date</Text>
-                </View>
-                <Text style={styles.detailValue}>
-                  {new Date(item.date).toLocaleDateString()}
-                </Text>
-              </View>
-
               <View style={styles.totalDivider} />
 
               <TouchableOpacity
-                style={styles.editBtnExpanded}
+                style={styles.editBtn}
                 onPress={() => onEdit(item)}
               >
-                <Icon name="create-outline" size={18} color="#fff" />
+                <Icon name="create-outline" size={16} color="#4338CA" />
                 <Text style={styles.editText}>Edit Purchase</Text>
               </TouchableOpacity>
             </View>
@@ -1679,33 +1843,225 @@ const styles = StyleSheet.create({
   },
 
   swipeWrapper: {
-    position: 'relative',
+    marginVertical: 6,
+  },
+
+  /* ================= DELETE ================= */
+
+  deleteBg: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 24,
+  },
+
+  deletePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+  },
+
+  deleteText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+
+  /* ================= CARD ================= */
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  /* ================= LEFT ================= */
+
+  leftBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  textBlock: {
+    flex: 1,
+  },
+
+  productTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  qtyPill: {
+    marginTop: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#EEF2FF',
+  },
+
+  qtyText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4338CA',
+    textTransform: 'capitalize',
+  },
+
+  subMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+
+  rightCol: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 84, // 👈 guarantees space for amount
+  },
+
+  amountMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  amountHero: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
+    marginTop: 4,
+  },
+
+  arrowBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  assetType: {
+    fontSize: 12,
+    color: '#6B7280',
+    maxWidth: '65%',
+  },
+
+  /* ================= RIGHT ================= */
+
+  arrowWrap: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+
+  amountText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 6,
+  },
+
+  /* ================= EXPANDED ================= */
+
+  expandedBox: {
+    marginTop: 14,
+    padding: 14,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+
+  detailLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  detailLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+
+  detailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+
+  totalDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+
+  /* ================= ACTION ================= */
+
+  editBtn: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+  },
+
+  editText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4338CA',
   },
 
   emptyText: {
     textAlign: 'center',
     marginTop: 12,
     color: '#6B7280',
-  },
-
-  deleteBg: {
-    position: 'absolute',
-    right: 0,
-    width: '100%', // ✅ full width but clipped
-    height: 108,
-    backgroundColor: '#DC2626',
-    borderRadius: 18,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingRight: 50,
-    overflow: 'hidden', // ✅ THIS HIDES IT UNTIL SWIPE
-  },
-
-  deleteText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 14,
-    textAlign: 'center',
   },
 
   searchInput: {
@@ -1771,15 +2127,6 @@ const styles = StyleSheet.create({
   actionBox: {
     flexDirection: 'row',
     gap: 10,
-  },
-
-  editBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   fab: {
@@ -1880,11 +2227,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  qtyText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
 
   actionRow: {
@@ -2282,18 +2624,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  productTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-  },
-
-  assetType: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-
   stockBadge: {
     backgroundColor: '#DCFCE7',
     paddingHorizontal: 12,
@@ -2307,37 +2637,6 @@ const styles = StyleSheet.create({
     color: '#166534',
   },
 
-  expandedBox: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 12,
-  },
-
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-
-  detailLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-
-  detailValue: {
-    fontSize: 13,
-    color: '#111827',
-    fontWeight: '700',
-  },
-
-  totalDivider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 10,
-  },
-
   editBtnExpanded: {
     marginTop: 14,
     flexDirection: 'row',
@@ -2347,11 +2646,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     gap: 6,
-  },
-
-  editText: {
-    color: '#fff',
-    fontWeight: '700',
   },
 
   toggleRow: {
@@ -2426,13 +2720,6 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: '#6B7280',
     marginTop: 4,
-  },
-
-  rightCol: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: 8,
   },
 
   totalBadge: {
@@ -2619,25 +2906,6 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-
-  amountText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#166534',
-  },
-
-  detailLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-
   statusRow: {
     marginTop: 6,
     flexDirection: 'row',
@@ -2652,6 +2920,7 @@ const styles = StyleSheet.create({
   },
 
   paymentMethod: {
+    marginTop: 5,
     borderWidth: 1,
     borderColor: '#ccc',
     paddingHorizontal: 7,

@@ -110,6 +110,15 @@ const Client = ({ navigation }) => {
   const [csvModalVisible, setCsvModalVisible] = useState(false);
   const [csvText, setCsvText] = useState('');
 
+  const PAGE_SIZE = 20;
+  const pageRef = useRef(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const abortRef = useRef(null);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
   const safeArray = v => (Array.isArray(v) ? v : []);
 
   useEffect(() => {
@@ -336,6 +345,34 @@ const Client = ({ navigation }) => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    Alert.alert(
+      'Delete Clinets',
+      `Delete ${selectedIds.length} selected Clients?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await Promise.all(selectedIds.map(id => api.deleteClient(id)));
+
+              setClients(prev =>
+                prev.filter(p => !selectedIds.includes(p._id)),
+              );
+
+              clearSelection();
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleEdit = item => {
     setEditingClient(item);
 
@@ -360,31 +397,75 @@ const Client = ({ navigation }) => {
     }).start();
   };
 
-  const loadClients = useCallback(async () => {
-    try {
-      setRefreshing(true);
-      setLoading(true);
-      const res = await api.getAllClients();
-      setClients(safeArray(res));
+  const loadClients = useCallback(
+    async ({ reset = false } = {}) => {
+      if (loadingMore && !reset) return;
+      if (!hasMore && !reset) return;
 
-      console.log('Safeclient', safeArray(res));
-      console.log('client', res);
+      // ❌ cancel previous request
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-      await saveClientsToCache(res);
-    } catch (err) {
-      const cached = await getClientsFromCache();
-      if (cached) {
-        setClients(cached);
+      try {
+        if (reset) {
+          pageRef.current = 1;
+          setHasMore(true);
+          setRefreshing(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const res = await api.getAllClients({
+          page: pageRef.current,
+          limit: PAGE_SIZE,
+          signal: controller.signal,
+        });
+
+        const list = res.clients || res;
+
+        setClients(prev => (reset ? list : [...prev, ...list]));
+
+        // ✅ move cursor ONLY after success
+        if (list.length < PAGE_SIZE) {
+          setHasMore(false);
+        } else {
+          pageRef.current += 1; // 🔥 THIS FIXES IT
+        }
+
+        await saveClientsToCache(res);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.log(err.message);
+        }
+        const cached = await getClientsFromCache();
+        if (cached) {
+          setClients(cached);
+        }
+        console.log('Fetch error:', err.message);
+      } finally {
+        setRefreshing(false);
+        setLoading(false);
       }
-      console.log('Fetch error:', err.message);
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  }, [refreshing]);
+    },
+    [hasMore, loadingMore],
+  );
 
   useEffect(() => {
-    loadClients();
+    const init = async () => {
+      setLoading(true);
+      try {
+        await loadClients({ reset: true }); // ✅ page 1
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
+
+    return () => {
+      abortRef.current?.abort(); // ✅ cleanup
+    };
   }, []);
 
   const onRefresh = async () => {
@@ -399,9 +480,44 @@ const Client = ({ navigation }) => {
     setConfirmVisible(true);
   }, []);
 
+  const toggleSelect = id => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    );
+  };
+
+  const selectAll = () => {
+    setSelectedIds(filteredClients.map(p => p._id));
+  };
+
+  const clearSelection = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
   return (
     <View style={styles.container}>
       <Navbar title="Clients" onSearch={openSearch} />
+
+      {selectionMode && (
+        <View style={styles.bulkBar}>
+          <TouchableOpacity onPress={selectAll}>
+            <Text style={styles.bulkText}>Select All</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.bulkCount}>{selectedIds.length} selected</Text>
+
+          <View style={{ flexDirection: 'row', gap: 14 }}>
+            <TouchableOpacity onPress={clearSelection}>
+              <Icon name="close" size={22} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleBulkDelete}>
+              <Icon name="trash-outline" size={22} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* ✅ SEARCH BAR */}
       {showSearch && (
@@ -466,7 +582,14 @@ const Client = ({ navigation }) => {
           renderItem={({ item }) => (
             <SwipeCard
               item={item}
-              onDelete={handleDelete}
+              selectionMode={selectionMode}
+              isSelected={selectedIds.includes(item._id)}
+              onSelect={toggleSelect}
+              onLongPress={id => {
+                setSelectionMode(true);
+                setSelectedIds([id]);
+              }}
+              // onDelete={handleDelete}
               onEdit={handleEdit}
               openConfirm={openConfirm}
               navigation={navigation}
@@ -757,17 +880,36 @@ const getClientIcon = type => {
   return 'person-outline';
 };
 
-const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
+const SwipeCard = ({
+  item,
+  onEdit,
+  openConfirm,
+  selectionMode,
+  isSelected,
+  onSelect,
+  onLongPress,
+  navigation,
+}) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const expandAnim = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
 
   /* ---------------- EXPAND ---------------- */
 
   const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    Animated.timing(expandAnim, {
+      toValue: expanded ? 0 : 1,
+      duration: 260,
+      useNativeDriver: false,
+    }).start();
     setExpanded(prev => !prev);
   };
+
+  const expandedHeight = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 260],
+  });
 
   useEffect(() => {
     Animated.spring(rotateAnim, {
@@ -818,9 +960,17 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
             useNativeDriver: true,
           }).start();
 
-          openConfirm(item._id, resetPosition);
+          openConfirm(item._id, () =>
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start(),
+          );
         } else {
-          resetPosition();
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
         }
       },
     }),
@@ -860,9 +1010,35 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
       {/* CARD */}
       <Animated.View
         style={[styles.card, { transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
+        {...(!selectionMode ? panResponder.panHandlers : {})}
       >
-        <TouchableOpacity activeOpacity={0.9} onPress={toggleExpand}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            if (selectionMode) {
+              onSelect(item._id);
+            } else {
+              toggleExpand();
+            }
+          }}
+          onLongPress={() => {
+            if (!selectionMode) {
+              onLongPress(item._id);
+            }
+          }}
+        >
+          {selectionMode && (
+            <View style={styles.checkWrap}>
+              <View
+                style={[
+                  styles.checkCircle,
+                  isSelected && styles.checkCircleActive,
+                ]}
+              >
+                {isSelected && <Icon name="checkmark" size={14} color="#fff" />}
+              </View>
+            </View>
+          )}
           {/* COLLAPSED (SAME AS PRODUCT) */}
           <View style={styles.row}>
             {/* LEFT */}
@@ -894,25 +1070,32 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
 
             {/* RIGHT */}
             <View style={styles.arrowWrap}>
-              <Animated.View
-                style={{
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '180deg'],
-                      }),
-                    },
-                  ],
-                }}
-              >
-                <Icon name="chevron-down" size={18} color="#111827" />
-              </Animated.View>
+              {!selectionMode && (
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        rotate: rotateAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '180deg'],
+                        }),
+                      },
+                    ],
+                  }}
+                >
+                  <Icon name="chevron-down" size={18} color="#111827" />
+                </Animated.View>
+              )}
             </View>
           </View>
 
           {/* EXPANDED (SAME CARD STYLE) */}
-          {expanded && (
+          <Animated.View
+            style={[
+              styles.expandContainer,
+              { height: expandedHeight, overflow: 'hidden' },
+            ]}
+          >
             <View style={styles.expandedBox}>
               <Detail
                 label="Pending Amount"
@@ -955,7 +1138,7 @@ const SwipeCard = ({ item, onDelete, onEdit, openConfirm, navigation }) => {
                 </TouchableOpacity>
               </View>
             </View>
-          )}
+          </Animated.View>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -1803,5 +1986,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 14,
+  },
+
+  checkWrap: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#9CA3AF',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  checkCircleActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+
+  bulkBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 56,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  bulkText: {
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+
+  bulkCount: {
+    fontWeight: '700',
+    color: '#111827',
   },
 });
